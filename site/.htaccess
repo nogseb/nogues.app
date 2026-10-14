@@ -1,0 +1,3 @@
+# Page d'accueil de nogues.app (hébergement Apache OVHcloud).
+# index.html est servi en priorité, avant une éventuelle page par défaut de l'hébergeur.
+DirectoryIndex index.html index.php

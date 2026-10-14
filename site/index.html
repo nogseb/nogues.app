@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bricolages | Sébastien Noguès</title>
+<meta name="description" content="Expérimentations web et IA générative de Sébastien Noguès : intentions, outils utilisés et retours d'expérience, tenus comme un carnet de terrain.">
+<meta name="author" content="Sébastien Noguès">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://nogues.app/">
+
+<!-- Partage sur les réseaux -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:url" content="https://nogues.app/">
+<meta property="og:title" content="Bricolages | Sébastien Noguès">
+<meta property="og:description" content="Expérimentations web et IA générative, tenues comme un carnet de terrain.">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232346D8'/%3E%3Cpath d='M18 46V20h6l16 17V20h6v26h-6L24 29v17z' fill='%23fff'/%3E%3C/svg%3E">
+
+<!-- Polices servies par Bunny Fonts : catalogue identique à Google Fonts, sans transfert de données vers Google -->
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=bricolage-grotesque:400,600,800|literata:400,400i,600&display=swap">
+
+<!-- Données structurées : ajouter l'URL LinkedIn dans "sameAs" une fois connue -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Sébastien Noguès",
+  "url": "https://nogues.app/",
+  "jobTitle": "Responsable projets digitaux et innovation marketing",
+  "worksFor": { "@type": "Organization", "name": "TBS Education" },
+  "address": { "@type": "PostalAddress", "addressLocality": "Toulouse", "addressCountry": "FR" },
+  "knowsAbout": ["IA générative", "Web", "SEO", "Marketing digital", "Sociologie"]
+}
+</script>
+
+<style>
+  :root {
+    --paper: #EEF1F3;
+    --ink: #18202B;
+    --muted: #586474;
+    --rule: #C7CFD8;
+    --accent: #2346D8;
+    --accent-soft: #DDE4FB;
+    --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --text: "Literata", Georgia, "Times New Roman", serif;
+    --measure: 68ch;
+    --gutter: clamp(1rem, 4vw, 3rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12161C;
+      --ink: #E6EAEF;
+      --muted: #9AA6B4;
+      --rule: #2C3440;
+      --accent: #8EA6FF;
+      --accent-soft: #1E2847;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12161C;
+    --ink: #E6EAEF;
+    --muted: #9AA6B4;
+    --rule: #2C3440;
+    --accent: #8EA6FF;
+    --accent-soft: #1E2847;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--text);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: 72rem; margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+  /* Filet aligné sur le texte, pas sur la marge */
+  .ruled { background-image: linear-gradient(var(--rule), var(--rule)); background-size: calc(100% - 2 * var(--gutter)) 1px; background-position: center top; background-repeat: no-repeat; }
+
+  /* En-tête */
+  .top {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+    padding-top: 1.5rem; padding-bottom: 1.5rem;
+    font-family: var(--display); font-size: 0.95rem;
+  }
+  .top .site { font-weight: 600; color: var(--ink); text-decoration: none; }
+  .top nav { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+
+  /* Ouverture */
+  .hero { padding-top: clamp(3rem, 10vw, 7rem); padding-bottom: clamp(2.5rem, 7vw, 5rem); }
+  .hero h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(3.4rem, 15vw, 10.5rem);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    overflow: hidden;
+    padding-bottom: 0.14em;
+  }
+  .hero h1 span { display: inline-block; animation: rise 0.9s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes rise { from { transform: translateY(105%); } to { transform: none; } }
+  .lede {
+    max-width: 40ch;
+    margin: clamp(1.5rem, 3vw, 2.25rem) 0 0;
+    font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+    line-height: 1.5;
+  }
+  .byline { margin: 1rem 0 0; color: var(--muted); font-family: var(--display); font-size: 0.95rem; }
+
+  /* Sections */
+  section { padding-top: clamp(2.5rem, 6vw, 4.5rem); padding-bottom: clamp(2.5rem, 6vw, 4.5rem); }
+  h2 {
+    margin: 0 0 1.75rem;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.02em;
+  }
+
+  /* Fiches d'expérience */
+  .fiches { list-style: none; margin: 0; padding: 0; }
+  .fiche {
+    display: grid;
+    grid-template-columns: minmax(11rem, 15rem) 1fr;
+    gap: 0.5rem 3rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .fiche:first-child { border-top: 0; padding-top: 0; }
+  .fiche .meta { font-family: var(--display); font-size: 0.95rem; color: var(--muted); }
+  .fiche .meta dl { margin: 0; }
+  .fiche .meta dt { color: var(--ink); font-weight: 600; }
+  .fiche .meta dd { margin: 0 0 0.75rem; }
+  .status { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+  .status.prive { background: transparent; border: 1px solid var(--rule); }
+  .fiche h3 {
+    margin: 0 0 0.75rem;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+  .fiche .body { max-width: var(--measure); }
+  .fiche .body p { margin: 0 0 0.9rem; }
+  .fiche .body .k { font-family: var(--display); font-weight: 600; font-size: 0.95rem; display: block; color: var(--muted); }
+  .fiche .go { font-family: var(--display); font-weight: 600; }
+
+  /* Démarche et contact */
+  .prose { max-width: var(--measure); }
+  .prose p { margin: 0 0 1rem; }
+  .contact-links { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; font-family: var(--display); font-size: 1.1rem; font-weight: 600; }
+
+  /* Pied de page */
+  footer { padding-top: 2rem; padding-bottom: 3rem; color: var(--muted); font-size: 0.9rem; }
+  footer h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--ink); }
+  footer p { margin: 0 0 0.5rem; max-width: var(--measure); }
+
+  @media (max-width: 720px) {
+    .fiche { grid-template-columns: 1fr; gap: 0.25rem; }
+    .fiche .meta { order: 2; }
+    .fiche .meta { margin-top: 0.25rem; }
+    .fiche .meta dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; align-items: baseline; }
+    .fiche .meta dd { margin: 0; }
+    .top { flex-direction: column; gap: 0.5rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero h1 span { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="site" href="https://nogues.app/">nogues.app</a>
+  <nav aria-label="Navigation principale">
+    <a href="#experiences">Expériences</a>
+    <a href="#demarche">Démarche</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1><span>Bricolages</span></h1>
+    <p class="lede">Des expérimentations web et IA générative, tenues comme un carnet de terrain : ce que je voulais faire, avec quels outils, et où j'en suis.</p>
+    <p class="byline">Sébastien Noguès, Toulouse</p>
+  </div>
+
+  <section id="experiences" class="wrap ruled" aria-labelledby="titre-experiences">
+    <h2 id="titre-experiences">Expériences</h2>
+
+    <!--
+      Pour ajouter une expérience : dupliquer un bloc <li class="fiche"> ... </li>
+      et adapter le titre, le statut, les outils, les textes et le lien.
+      Statuts possibles : "En ligne", "En cours", "En préparation", "Archivé".
+      Pour un projet privé, utiliser class="status prive" et ne pas mettre de lien.
+    -->
+    <ul class="fiches">
+
+      <li class="fiche">
+        <div class="meta">
+          <dl>
+            <dt>Statut</dt>
+            <dd><span class="status">En ligne, chaque semaine</span></dd>
+            <dt>Outils</dt>
+            <dd>Manus.im, GitHub</dd>
+          </dl>
+        </div>
+        <div class="body">
+          <h3>Veille IA, web et marketing</h3>
+          <p><span class="k">Intention</span>Tenir une veille hebdomadaire sur l'IA, le web et le marketing, produite en grande partie de façon autonome par un agent.</p>
+          <p><span class="k">Où j'en suis</span>Le prompt de production en est à sa troisième version. Il ajoute un huitième domaine consacré à l'innovation marketing et un format de fiche « Cas d'école ».</p>
+          <!-- <p><span class="k">Ce que j'en retiens</span>À rédiger.</p> -->
+          <p><a class="go" href="https://veilleiaweb.digital">Lire la veille sur veilleiaweb.digital</a></p>
+        </div>
+      </li>
+
+      <li class="fiche">
+        <div class="meta">
+          <dl>
+            <dt>Statut</dt>
+            <dd><span class="status">En ligne</span></dd>
+            <dt>Outils</dt>
+            <dd>Claude, GitHub, hébergement OVHcloud</dd>
+          </dl>
+        </div>
+        <div class="body">
+          <h3>Cette page</h3>
+          <p><span class="k">Intention</span>Disposer d'une adresse unique pour rassembler mes expérimentations, sans CMS ni base de données.</p>
+          <p><span class="k">Où j'en suis</span>Une page statique, publiée automatiquement depuis GitHub sur l'hébergement. Chaque nouvelle expérience s'ajoute ici sous forme de fiche.</p>
+        </div>
+      </li>
+
+      <li class="fiche">
+        <div class="meta">
+          <dl>
+            <dt>Statut</dt>
+            <dd><span class="status prive">En ligne, accès privé</span></dd>
+            <dt>Outils</dt>
+            <dd>Claude, MapLibre</dd>
+          </dl>
+        </div>
+        <div class="body">
+          <h3>Carnet de voyage interactif</h3>
+          <p><span class="k">Intention</span>Réunir le programme d'un voyage et une carte en relief dans une page consultable sur téléphone, sur place.</p>
+          <p><span class="k">Où j'en suis</span>Dix-sept jours de programme, un relief construit à partir des données ouvertes Copernicus et un suivi des réservations. Le carnet circule par lien partagé et n'est pas référencé par les moteurs de recherche.</p>
+        </div>
+      </li>
+
+    </ul>
+  </section>
+
+  <section id="demarche" class="wrap ruled" aria-labelledby="titre-demarche">
+    <h2 id="titre-demarche">Démarche</h2>
+    <div class="prose">
+      <p>Le titre est un clin d'œil à Claude Lévi-Strauss, pour qui le bricoleur compose avec les moyens du bord plutôt qu'à partir d'un plan d'ingénieur. C'est assez fidèle à ma façon d'utiliser l'IA générative : partir d'un besoin concret, essayer l'outil qui semble le plus adapté, corriger, recommencer.</p>
+      <p>Au quotidien, je pilote des projets digitaux et d'innovation marketing chez TBS Education. Sociologue de formation, je m'intéresse autant à ce que ces outils permettent qu'à ce qu'ils changent dans la manière de travailler. Les projets présentés ici sont des expérimentations personnelles.</p>
+    </div>
+  </section>
+
+  <section id="contact" class="wrap ruled" aria-labelledby="titre-contact">
+    <h2 id="titre-contact">Contact</h2>
+    <div class="contact-links">
+      <!-- Remplacer VOTRE-PROFIL par l'identifiant de votre profil LinkedIn -->
+      <a href="https://www.linkedin.com/in/VOTRE-PROFIL/">LinkedIn</a>
+      <a href="https://veilleiaweb.digital">veilleiaweb.digital</a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap ruled">
+  <h2>Mentions légales</h2>
+  <p>Éditeur : Sébastien Noguès, à titre personnel.</p>
+  <p>Hébergeur : OVH SAS, 2 rue Kellermann, 59100 Roubaix, France.</p>
+  <p>Ce site ne dépose aucun cookie et n'utilise aucun outil de mesure d'audience.</p>
+  <p>© 2026 Sébastien Noguès</p>
+</footer>
+
+</body>
+</html>

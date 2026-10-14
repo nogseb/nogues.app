@@ -1,0 +1,73 @@
+# Publie le dossier site/ à la racine de nogues.app (hébergement web OVHcloud), en SFTP, à chaque mise à jour.
+#
+# Réglages (Settings > Secrets and variables > Actions de CE dépôt), jamais écrits ici :
+#   secrets   OVH_SFTP_HOST      serveur FTP/SFTP de l'hébergement (onglet « FTP - SSH » de l'espace client)
+#             OVH_SFTP_USER      login FTP (case SFTP cochée dans ce même onglet)
+#             OVH_SFTP_PASSWORD  mot de passe FTP
+#   variable  OVH_TARGET_DIR     dossier de destination (par défaut : www, la racine du domaine)
+#
+# Sans ces secrets, le workflow s'arrête proprement sans rien envoyer.
+# Les fichiers sont ajoutés ou remplacés ; rien n'est jamais supprimé sur le serveur,
+# ce qui protège les sous-dossiers publiés par d'autres dépôts (par exemple www/rm).
+
+name: Publier nogues.app sur OVHcloud
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/deploy-ovh.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ovh-root
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SFTP_HOST: ${{ secrets.OVH_SFTP_HOST }}
+      SFTP_USER: ${{ secrets.OVH_SFTP_USER }}
+      LFTP_PASSWORD: ${{ secrets.OVH_SFTP_PASSWORD }}
+      TARGET_DIR: ${{ vars.OVH_TARGET_DIR || 'www' }}
+    steps:
+      - name: Vérifier la configuration
+        id: check
+        run: |
+          if [ -z "$SFTP_HOST" ] || [ -z "$SFTP_USER" ] || [ -z "$LFTP_PASSWORD" ]; then
+            echo "::warning::Secrets OVH_SFTP_HOST, OVH_SFTP_USER ou OVH_SFTP_PASSWORD absents de ce dépôt : publication ignorée."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "${TARGET_DIR%/}" in
+            ""|"."|"/")
+              echo "::error::Dossier cible refusé (« $TARGET_DIR ») : indiquez www."
+              exit 1 ;;
+          esac
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Récupérer le site
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/checkout@v4
+
+      - name: Installer lftp
+        if: steps.check.outputs.ready == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Envoyer site/ en SFTP
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          lftp --env-password -u "$SFTP_USER" "sftp://$SFTP_HOST" -e "
+            set sftp:auto-confirm yes;
+            set net:timeout 20; set net:max-retries 3; set net:reconnect-interval-base 5;
+            mkdir -p -f '$TARGET_DIR';
+            mirror --reverse --parallel=4 site/ '$TARGET_DIR';
+            cls -1 '$TARGET_DIR';
+            bye"
+          echo "Publication terminée : $(find site -type f | wc -l) fichiers dans $TARGET_DIR" >> "$GITHUB_STEP_SUMMARY"
