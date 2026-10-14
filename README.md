@@ -14,7 +14,7 @@ site/                  contenu publié à la racine du domaine (www/)
 
 ## Ajouter une expérience
 
-Dans `site/index.html`, dupliquer un bloc `<li class="fiche"> ... </li>` et adapter le titre, le statut, les outils, les textes et le lien. Un projet privé garde la classe `status prive` et ne reçoit pas de lien.
+Dans `site/index.html`, dupliquer un bloc `<li class="card ..."> ... </li>` de la section Expériences et adapter la catégorie, le titre, le lien, la description, le statut et les outils. Catégories disponibles (classe et couleur) : `veille`, `explo`, `travail`, `perso`. Un projet privé reçoit en plus la classe `prive` et un titre sans lien.
 
 ## Publication
 

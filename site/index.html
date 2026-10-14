@@ -44,6 +44,11 @@
     --rule: #C7CFD8;
     --accent: #2346D8;
     --accent-soft: #DDE4FB;
+    --card: #F8FAFB;
+    --c-veille: #2346D8;
+    --c-explo: #0F8573;
+    --c-travail: #6A3FD0;
+    --c-perso: #C0661E;
     --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
     --text: "Literata", Georgia, "Times New Roman", serif;
     --measure: 68ch;
@@ -57,6 +62,11 @@
       --rule: #2C3440;
       --accent: #8EA6FF;
       --accent-soft: #1E2847;
+      --card: #181D25;
+      --c-veille: #8EA6FF;
+      --c-explo: #4CC3AE;
+      --c-travail: #B49BFF;
+      --c-perso: #F0A35E;
     }
   }
   :root[data-theme="dark"] {
@@ -66,6 +76,11 @@
     --rule: #2C3440;
     --accent: #8EA6FF;
     --accent-soft: #1E2847;
+    --card: #181D25;
+    --c-veille: #8EA6FF;
+    --c-explo: #4CC3AE;
+    --c-travail: #B49BFF;
+    --c-perso: #F0A35E;
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -131,51 +146,53 @@
     letter-spacing: -0.02em;
   }
 
-  /* Fiches d'expérience */
-  .fiches { list-style: none; margin: 0; padding: 0; }
-  .fiche {
-    display: grid;
-    grid-template-columns: minmax(11rem, 15rem) 1fr;
-    gap: 0.5rem 3rem;
-    padding: 2rem 0;
-    border-top: 1px solid var(--rule);
+  /* Cartes d'expérience */
+  .intro-exp { max-width: var(--measure); margin: -0.75rem 0 2rem; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0 0 1.75rem; padding: 0; list-style: none; font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 0.45rem; }
+  .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--cat); flex: none; }
+  .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1rem; }
+  .card {
+    --cat: var(--accent);
+    position: relative;
+    display: flex; flex-direction: column;
+    padding: 1.25rem 1.25rem 1.1rem;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-top: 4px solid var(--cat);
+    border-radius: 6px;
   }
-  .fiche:first-child { border-top: 0; padding-top: 0; }
-  .fiche .meta { font-family: var(--display); font-size: 0.95rem; color: var(--muted); }
-  .fiche .meta dl { margin: 0; }
-  .fiche .meta dt { color: var(--ink); font-weight: 600; }
-  .fiche .meta dd { margin: 0 0 0.75rem; }
-  .status { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
-  .status.prive { background: transparent; border: 1px solid var(--rule); }
-  .fiche h3 {
-    margin: 0 0 0.75rem;
-    font-family: var(--display);
-    font-weight: 600;
-    font-size: clamp(1.35rem, 2.5vw, 1.7rem);
-    letter-spacing: -0.015em;
-    line-height: 1.2;
-  }
-  .fiche .body { max-width: var(--measure); }
-  .fiche .body p { margin: 0 0 0.9rem; }
-  .fiche .body .k { font-family: var(--display); font-weight: 600; font-size: 0.95rem; display: block; color: var(--muted); }
-  .fiche .go { font-family: var(--display); font-weight: 600; }
+  .card.veille { --cat: var(--c-veille); }
+  .card.explo { --cat: var(--c-explo); }
+  .card.travail { --cat: var(--c-travail); }
+  .card.perso { --cat: var(--c-perso); }
+  .legend .veille { --cat: var(--c-veille); }
+  .legend .explo { --cat: var(--c-explo); }
+  .legend .travail { --cat: var(--c-travail); }
+  .legend .perso { --cat: var(--c-perso); }
+  .card .cat { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 0.6rem; font-family: var(--display); font-size: 0.85rem; color: var(--muted); }
+  .card h3 { margin: 0 0 0.5rem; font-family: var(--display); font-weight: 600; font-size: 1.3rem; letter-spacing: -0.015em; line-height: 1.2; }
+  .card h3 a { color: var(--ink); text-decoration: none; }
+  .card h3 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+  .card h3 a:focus-visible { outline: none; }
+  .card:has(h3 a:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card:has(h3 a):hover { border-color: var(--cat); border-top-color: var(--cat); }
+  .card p { margin: 0 0 1rem; font-size: 1rem; line-height: 1.55; }
+  .card .foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; font-family: var(--display); font-size: 0.85rem; color: var(--muted); }
+  .card .host { color: var(--accent); font-weight: 600; }
+  .status { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+  .card.prive { background: transparent; border-style: dashed; border-top-style: solid; }
+  .card.prive .status { background: transparent; border: 1px solid var(--rule); }
 
-  /* Démarche et contact */
+  /* Démarche */
   .prose { max-width: var(--measure); }
   .prose p { margin: 0 0 1rem; }
-  .contact-links { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; font-family: var(--display); font-size: 1.1rem; font-weight: 600; }
 
   /* Pied de page */
-  footer { padding-top: 2rem; padding-bottom: 3rem; color: var(--muted); font-size: 0.9rem; }
-  footer h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--ink); }
-  footer p { margin: 0 0 0.5rem; max-width: var(--measure); }
+  footer { padding-top: 1rem; padding-bottom: 1.25rem; color: var(--muted); font-family: var(--display); font-size: 0.8rem; line-height: 1.5; }
+  footer p { margin: 0; }
 
   @media (max-width: 720px) {
-    .fiche { grid-template-columns: 1fr; gap: 0.25rem; }
-    .fiche .meta { order: 2; }
-    .fiche .meta { margin-top: 0.25rem; }
-    .fiche .meta dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; align-items: baseline; }
-    .fiche .meta dd { margin: 0; }
     .top { flex-direction: column; gap: 0.5rem; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -190,7 +207,6 @@
   <nav aria-label="Navigation principale">
     <a href="#experiences">Expériences</a>
     <a href="#demarche">Démarche</a>
-    <a href="#contact">Contact</a>
   </nav>
 </header>
 
@@ -203,65 +219,73 @@
 
   <section id="experiences" class="wrap ruled" aria-labelledby="titre-experiences">
     <h2 id="titre-experiences">Expériences</h2>
+    <ul class="legend" aria-label="Catégories">
+      <li class="veille"><span class="dot" aria-hidden="true"></span>Veille</li>
+      <li class="explo"><span class="dot" aria-hidden="true"></span>Exploration</li>
+      <li class="travail"><span class="dot" aria-hidden="true"></span>Outils métier</li>
+      <li class="perso"><span class="dot" aria-hidden="true"></span>Vie personnelle</li>
+    </ul>
 
     <!--
-      Pour ajouter une expérience : dupliquer un bloc <li class="fiche"> ... </li>
-      et adapter le titre, le statut, les outils, les textes et le lien.
-      Statuts possibles : "En ligne", "En cours", "En préparation", "Archivé".
-      Pour un projet privé, utiliser class="status prive" et ne pas mettre de lien.
+      Pour ajouter une expérience : dupliquer un bloc <li class="card ..."> ... </li>.
+      Catégories (classe et couleur) : veille, explo, travail, perso.
+      Projet privé : ajouter la classe "prive" et mettre le titre sans lien.
     -->
-    <ul class="fiches">
-
-      <li class="fiche">
-        <div class="meta">
-          <dl>
-            <dt>Statut</dt>
-            <dd><span class="status">En ligne, chaque semaine</span></dd>
-            <dt>Outils</dt>
-            <dd>Manus.im, GitHub</dd>
-          </dl>
-        </div>
-        <div class="body">
-          <h3>Veille IA, web et marketing</h3>
-          <p><span class="k">Intention</span>Tenir une veille hebdomadaire sur l'IA, le web et le marketing, produite en grande partie de façon autonome par un agent.</p>
-          <p><span class="k">Où j'en suis</span>Le prompt de production en est à sa troisième version. Il ajoute un huitième domaine consacré à l'innovation marketing et un format de fiche « Cas d'école ».</p>
-          <!-- <p><span class="k">Ce que j'en retiens</span>À rédiger.</p> -->
-          <p><a class="go" href="https://veilleiaweb.digital">Lire la veille sur veilleiaweb.digital</a></p>
-        </div>
+    <ul class="cards">
+      <li class="card veille">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Veille</p>
+        <h3><a href="https://veilleiaweb.digital">Veille IA, web et marketing</a></h3>
+        <p>Une veille hebdomadaire produite en grande partie par un agent. Le prompt en est à sa troisième version, avec un domaine consacré à l'innovation marketing.</p>
+        <div class="foot"><span class="status">Chaque semaine</span><span>Manus.im, GitHub</span></div>
       </li>
-
-      <li class="fiche">
-        <div class="meta">
-          <dl>
-            <dt>Statut</dt>
-            <dd><span class="status">En ligne</span></dd>
-            <dt>Outils</dt>
-            <dd>Claude, GitHub, hébergement OVHcloud</dd>
-          </dl>
-        </div>
-        <div class="body">
-          <h3>Cette page</h3>
-          <p><span class="k">Intention</span>Disposer d'une adresse unique pour rassembler mes expérimentations, sans CMS ni base de données.</p>
-          <p><span class="k">Où j'en suis</span>Une page statique, publiée automatiquement depuis GitHub sur l'hébergement. Chaque nouvelle expérience s'ajoute ici sous forme de fiche.</p>
-        </div>
+      <li class="card explo">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Exploration</p>
+        <h3><a href="https://street-art-saint-denis.manus.space/">ST.ART Saint-Denis</a></h3>
+        <p>Un parcours street art à Saint-Denis de La Réunion : huit étapes, sept artistes, environ 2,5 km à pied.</p>
+        <div class="foot"><span class="status">En ligne</span><span>Manus.im</span></div>
       </li>
-
-      <li class="fiche">
-        <div class="meta">
-          <dl>
-            <dt>Statut</dt>
-            <dd><span class="status prive">En ligne, accès privé</span></dd>
-            <dt>Outils</dt>
-            <dd>Claude, MapLibre</dd>
-          </dl>
-        </div>
-        <div class="body">
-          <h3>Carnet de voyage interactif</h3>
-          <p><span class="k">Intention</span>Réunir le programme d'un voyage et une carte en relief dans une page consultable sur téléphone, sur place.</p>
-          <p><span class="k">Où j'en suis</span>Dix-sept jours de programme, un relief construit à partir des données ouvertes Copernicus et un suivi des réservations. Le carnet circule par lien partagé et n'est pas référencé par les moteurs de recherche.</p>
-        </div>
+      <li class="card explo">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Exploration</p>
+        <h3><a href="https://atlas-emotionnel.bolt.host/">Atlas émotionnel</a></h3>
+        <p>Application web expérimentale.</p>
+        <div class="foot"><span class="status">En ligne</span><span>Bolt.new</span></div>
       </li>
-
+      <li class="card travail">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Outil métier</p>
+        <h3><a href="https://utm-tbs.netlify.app/">Générateur d'URL UTM</a></h3>
+        <p>Des liens de campagne tagués de façon homogène : génération en masse, champs optionnels en six langues, export Excel.</p>
+        <div class="foot"><span class="status">En service</span><span>Bolt.new, Netlify</span></div>
+      </li>
+      <li class="card travail">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Outil métier</p>
+        <h3><a href="https://fiches-metiers.bolt.host">Fiches métiers</a></h3>
+        <p>Maquette d'un agent qui produit des fiches métiers optimisées pour le référencement, à partir des données de l'APEC et du balisage Schema.org.</p>
+        <div class="foot"><span class="status">Maquette</span><span>Bolt.new</span></div>
+      </li>
+      <li class="card travail">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Outil métier</p>
+        <h3><a href="https://seo-tag-generator-j94h.bolt.host">Générateur de balises SEO</a></h3>
+        <p>Un générateur de balises pour le référencement des pages web.</p>
+        <div class="foot"><span class="status">En ligne</span><span>Bolt.new</span></div>
+      </li>
+      <li class="card perso">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Vie de famille</p>
+        <h3><a href="https://we-kids.manus.space/">Week-ends en famille</a></h3>
+        <p>Des idées d'activités pour enfants à Toulouse, proposées chaque semaine et calées sur le calendrier des week-ends.</p>
+        <div class="foot"><span class="status">Chaque semaine</span><span>Manus.im</span></div>
+      </li>
+      <li class="card perso prive">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Voyage</p>
+        <h3>Carnet de voyage interactif</h3>
+        <p>Dix-sept jours de programme, un relief construit à partir des données ouvertes Copernicus et un suivi des réservations. Circule par lien partagé.</p>
+        <div class="foot"><span class="status">Accès privé</span><span>Claude, MapLibre</span></div>
+      </li>
+      <li class="card veille">
+        <p class="cat"><span class="dot" aria-hidden="true"></span>Ce site</p>
+        <h3>Bricolages</h3>
+        <p>Une page statique, publiée automatiquement depuis GitHub sur l'hébergement. Chaque nouvelle expérience s'y ajoute sous forme de carte.</p>
+        <div class="foot"><span class="status">En ligne</span><span>Claude, GitHub, OVHcloud</span></div>
+      </li>
     </ul>
   </section>
 
@@ -273,22 +297,10 @@
     </div>
   </section>
 
-  <section id="contact" class="wrap ruled" aria-labelledby="titre-contact">
-    <h2 id="titre-contact">Contact</h2>
-    <div class="contact-links">
-      <!-- Remplacer VOTRE-PROFIL par l'identifiant de votre profil LinkedIn -->
-      <a href="https://www.linkedin.com/in/VOTRE-PROFIL/">LinkedIn</a>
-      <a href="https://veilleiaweb.digital">veilleiaweb.digital</a>
-    </div>
-  </section>
 </main>
 
 <footer class="wrap ruled">
-  <h2>Mentions légales</h2>
-  <p>Éditeur : Sébastien Noguès, à titre personnel.</p>
-  <p>Hébergeur : OVH SAS, 2 rue Kellermann, 59100 Roubaix, France.</p>
-  <p>Ce site ne dépose aucun cookie et n'utilise aucun outil de mesure d'audience.</p>
-  <p>© 2026 Sébastien Noguès</p>
+  <p>© 2026 Sébastien Noguès, à titre personnel. Hébergement : OVH SAS, 2 rue Kellermann, 59100 Roubaix. Aucun cookie, aucune mesure d'audience.</p>
 </footer>
 
 </body>
