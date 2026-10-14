@@ -47,7 +47,7 @@
     --card: #F8FAFB;
     --c-veille: #2346D8;
     --c-explo: #0F8573;
-    --c-travail: #6A3FD0;
+    --c-travail: #0A7BC4;
     --c-perso: #C0661E;
     --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
     --text: "Literata", Georgia, "Times New Roman", serif;
@@ -65,7 +65,7 @@
       --card: #181D25;
       --c-veille: #8EA6FF;
       --c-explo: #4CC3AE;
-      --c-travail: #B49BFF;
+      --c-travail: #5DB9F2;
       --c-perso: #F0A35E;
     }
   }
@@ -79,7 +79,7 @@
     --card: #181D25;
     --c-veille: #8EA6FF;
     --c-explo: #4CC3AE;
-    --c-travail: #B49BFF;
+    --c-travail: #5DB9F2;
     --c-perso: #F0A35E;
   }
 
@@ -148,8 +148,22 @@
 
   /* Cartes d'expérience */
   .intro-exp { max-width: var(--measure); margin: -0.75rem 0 2rem; color: var(--muted); }
-  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0 0 1.75rem; padding: 0; list-style: none; font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
-  .legend li { display: flex; align-items: center; gap: 0.45rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.75rem; }
+  .legend button {
+    --cat: var(--muted);
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    padding: 0.35rem 0.8rem;
+    font: inherit; font-family: var(--display); font-size: 0.9rem; color: var(--ink);
+    background: transparent; border: 1px solid var(--rule); border-radius: 999px;
+    cursor: pointer;
+  }
+  .legend button:hover { border-color: var(--cat); }
+  .legend button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .legend button[aria-pressed="true"] { background: var(--card); border-color: var(--cat); box-shadow: inset 0 0 0 1px var(--cat); }
+  .legend .n { color: var(--muted); font-size: 0.8rem; }
+  .legend .tout .dot { display: none; }
+  .card[hidden] { display: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--cat); flex: none; }
   .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1rem; }
   .card {
@@ -219,12 +233,14 @@
 
   <section id="experiences" class="wrap ruled" aria-labelledby="titre-experiences">
     <h2 id="titre-experiences">Expériences</h2>
-    <ul class="legend" aria-label="Catégories">
-      <li class="veille"><span class="dot" aria-hidden="true"></span>Veille</li>
-      <li class="explo"><span class="dot" aria-hidden="true"></span>Exploration</li>
-      <li class="travail"><span class="dot" aria-hidden="true"></span>Outils métier</li>
-      <li class="perso"><span class="dot" aria-hidden="true"></span>Vie personnelle</li>
-    </ul>
+    <div class="legend" role="group" aria-label="Filtrer par catégorie">
+      <button type="button" class="tout" data-filter="tout" aria-pressed="true">Toutes <span class="n"></span></button>
+      <button type="button" class="veille" data-filter="veille" aria-pressed="false"><span class="dot" aria-hidden="true"></span>Veille <span class="n"></span></button>
+      <button type="button" class="explo" data-filter="explo" aria-pressed="false"><span class="dot" aria-hidden="true"></span>Exploration <span class="n"></span></button>
+      <button type="button" class="travail" data-filter="travail" aria-pressed="false"><span class="dot" aria-hidden="true"></span>Outils métier <span class="n"></span></button>
+      <button type="button" class="perso" data-filter="perso" aria-pressed="false"><span class="dot" aria-hidden="true"></span>Vie personnelle <span class="n"></span></button>
+    </div>
+    <p class="sr-only" aria-live="polite" id="filtre-etat"></p>
 
     <!--
       Pour ajouter une expérience : dupliquer un bloc <li class="card ..."> ... </li>.
@@ -303,5 +319,34 @@
   <p>© 2026 Sébastien Noguès, à titre personnel. Hébergement : OVH SAS, 2 rue Kellermann, 59100 Roubaix. Aucun cookie, aucune mesure d'audience.</p>
 </footer>
 
+<script>
+  // Filtre des expériences par catégorie : un clic affiche la catégorie, un second clic revient à « Toutes ».
+  (function () {
+    var buttons = document.querySelectorAll('.legend button');
+    var cards = document.querySelectorAll('.cards .card');
+    var etat = document.getElementById('filtre-etat');
+    buttons.forEach(function (b) {
+      var f = b.dataset.filter;
+      var n = f === 'tout' ? cards.length : document.querySelectorAll('.cards .card.' + f).length;
+      b.querySelector('.n').textContent = n;
+    });
+    function apply(f) {
+      var shown = 0;
+      cards.forEach(function (c) {
+        var ok = f === 'tout' || c.classList.contains(f);
+        c.hidden = !ok;
+        if (ok) shown++;
+      });
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.filter === f)); });
+      etat.textContent = shown + (shown > 1 ? ' expériences affichées' : ' expérience affichée');
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = b.dataset.filter;
+        apply(b.getAttribute('aria-pressed') === 'true' && f !== 'tout' ? 'tout' : f);
+      });
+    });
+  })();
+</script>
 </body>
 </html>
