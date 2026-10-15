@@ -258,6 +258,16 @@
   .prose { max-width: var(--measure); }
   .prose p { margin: 0 0 1rem; }
 
+  /* Démarche : la section est « mise au plan » comme un dessin technique (canvas derrière le texte) */
+  #demarche { position: relative; min-height: 30rem; }
+  #demarche > .plan { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  #demarche h2, #demarche .prose { position: relative; }
+  #demarche .prose { width: 60%; }
+  @media (max-width: 760px) {
+    #demarche { min-height: 0; padding-bottom: 21rem; }
+    #demarche .prose { width: auto; }
+  }
+
   /* Pied de page */
   footer { padding-top: 1rem; padding-bottom: 1.25rem; color: var(--muted); font-family: var(--display); font-size: 0.8rem; line-height: 1.5; }
   footer p { margin: 0; }
@@ -583,6 +593,233 @@
       dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
       dlg.querySelector('[data-close]').addEventListener('click', function () { dlg.close(); });
     });
+  })();
+</script>
+<script>
+  // Démarche : « mise au plan ». La section se dessine comme un plan technique : repères, marge,
+  // lignes d'écriture sous le texte, cotes réelles (signes, lignes, interligne), quadrillage, compas,
+  // hachures, renvois vers des mots du texte et cartouche dont l'indice de révision change à chaque tour.
+  // Puis une gomme efface tout et le dessin recommence. Pause hors écran ; image fixe si animations réduites.
+  (function () {
+    var sec = document.getElementById('demarche');
+    if (!sec || !document.createElement('canvas').getContext) return;
+    var prose = sec.querySelector('.prose'), h2 = sec.querySelector('h2');
+    var cv = document.createElement('canvas'); cv.className = 'plan'; cv.setAttribute('aria-hidden', 'true');
+    sec.insertBefore(cv, sec.firstChild);
+    var ctx = cv.getContext('2d');
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)'), fine = window.matchMedia('(pointer: fine)');
+    var W = 0, H = 0, P = {}, Z = {}, G = {}, lines = [], lh = 28, signs = 0, h2w = 0, h2y = 0, h2x = 0, refs = [];
+    var C = {}, FD = '', FT = '', t = 0, rev = 0, CYCLE = 21, raf = 0, visible = true, last = 0, ptr = null;
+    var REFS = [['Lévi-Strauss', 'La Pensée sauvage, 1962'], ['bricoleur', 'bricolage, n. m.'], ['recommencer', 'indice suivant']];
+    var today = (function () { var d = new Date(); return ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear(); })();
+
+    function theme() {
+      var s = getComputedStyle(document.documentElement);
+      ['ink', 'muted', 'accent', 'paper'].forEach(function (k) { C[k] = s.getPropertyValue('--' + k).trim(); });
+      FD = s.getPropertyValue('--display'); FT = s.getPropertyValue('--text');
+    }
+    function rgba(hex, a) { var h = hex.replace('#', ''); if (h.length === 3) h = h.replace(/(.)/g, '$1$1'); var n = parseInt(h, 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; }
+    function cl(x) { return Math.max(0, Math.min(1, x)); }
+    function ease(x) { x = cl(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+    function pr(a, d) { return ease((t - a) / d); }
+    function seg(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+    function wordRect(word, root) {
+      var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
+      while ((n = w.nextNode())) {
+        var i = n.data.indexOf(word);
+        if (i >= 0) { var r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + word.length); var rs = r.getClientRects(); return rs[rs.length - 1] || r.getBoundingClientRect(); }
+      }
+      return null;
+    }
+
+    function measure() {
+      var r = sec.getBoundingClientRect(), pb = prose.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var cs = getComputedStyle(sec), padR = parseFloat(cs.paddingRight) || 16;
+      P = { left: pb.left - r.left, right: pb.right - r.left, top: pb.top - r.top, bottom: pb.bottom - r.top, width: pb.width };
+      var hb = h2.getBoundingClientRect();
+      Z.narrow = W < 760;
+      if (Z.narrow) Z = { narrow: true, x0: P.left, x1: W - padR, y0: P.bottom + 22, y1: H - 26 };
+      else Z = { narrow: false, x0: P.right + 56, x1: W - padR, y0: hb.top - r.top, y1: H - 26 };
+      var zw = Z.x1 - Z.x0, zh = Z.y1 - Z.y0;
+      G = Z.narrow ? { x: Z.x0, y: Z.y0, w: zw * 0.55, h: Math.min(150, zh - 110) } : { x: Z.x0 + zw * 0.44, y: Z.y0, w: zw * 0.56, h: Math.min(220, zh * 0.55) };
+      lines = [];
+      prose.querySelectorAll('p').forEach(function (p) {
+        var b = p.getBoundingClientRect(); lh = parseFloat(getComputedStyle(p).lineHeight) || 28;
+        var n = Math.max(1, Math.round(b.height / lh));
+        for (var i = 0; i < n; i++) lines.push({ y: b.top - r.top + (i + 0.8) * lh, x0: b.left - r.left, x1: b.right - r.left });
+      });
+      var fs = parseFloat(getComputedStyle(prose).fontSize) || 17;
+      ctx.font = '400 ' + fs + 'px ' + FT;
+      signs = Math.round(P.width / (ctx.measureText('Le titre est un clin d\'œil à Claude Lévi-Strauss, pour qui').width / 58));
+      var hr = wordRect('Démarche', h2) || hb; h2w = Math.round(hr.width); h2x = hr.left - r.left; h2y = hr.top - r.top;
+      refs = [];
+      if (!Z.narrow) {
+        REFS.forEach(function (d) {
+          var wr = wordRect(d[0], prose); if (!wr) return;
+          refs.push({ x: wr.left - r.left, w: wr.width, y: wr.bottom - r.top, label: d[1] });
+        });
+        refs.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+        var ly = -1e9;
+        refs.forEach(function (f) { f.ly = Math.max(f.y - 4, ly + 22); ly = f.ly; });
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      var n = lines.length, a, k, e;
+      ctx.lineCap = 'round'; ctx.lineWidth = 1; ctx.setLineDash([]);
+      var MU = function (al) { return rgba(C.muted, al); }, AC = function (al) { return rgba(C.accent, al); }, IN = function (al) { return rgba(C.ink, al); };
+
+      // Repères aux quatre coins du texte
+      e = pr(0, 0.6);
+      if (e > 0) {
+        ctx.strokeStyle = MU(0.45 * e);
+        [[P.left - 12, P.top - 12], [P.right + 12, P.top - 12], [P.left - 12, P.bottom + 6], [P.right + 12, P.bottom + 6]].forEach(function (q) {
+          seg(q[0] - 6, q[1], q[0] + 6, q[1]); seg(q[0], q[1] - 6, q[0], q[1] + 6);
+          ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 6.2832); ctx.stroke();
+        });
+      }
+      // Marge
+      e = pr(0.2, 1.2);
+      if (e > 0) { ctx.strokeStyle = e < 1 ? AC(0.6) : AC(0.32); seg(P.left - 14, P.top - 4, P.left - 14, P.top - 4 + (P.bottom - P.top + 8) * e); }
+      // Lignes d'écriture sous le texte
+      for (k = 0; k < n; k++) {
+        e = pr(0.5 + k * 0.14, 0.8); if (e <= 0) continue;
+        var L = lines[k]; ctx.strokeStyle = e < 1 ? AC(0.5) : MU(0.22);
+        seg(L.x0, L.y, L.x0 + (L.x1 - L.x0) * e, L.y);
+      }
+      ctx.font = '600 11px ' + FD; ctx.textBaseline = 'alphabetic';
+      // Cote du titre
+      e = pr(1.2, 0.8);
+      if (e > 0 && h2w) {
+        var yy = h2y - 8; ctx.strokeStyle = AC(0.6); ctx.fillStyle = AC(0.75);
+        seg(h2x, yy - 4, h2x, yy + 4); seg(h2x, yy, h2x + h2w * e, yy);
+        if (e >= 1) { seg(h2x + h2w, yy - 4, h2x + h2w, yy + 4); ctx.textAlign = 'left'; ctx.fillText(h2w + ' px', h2x + h2w + 8, yy + 4); }
+      }
+      // Lignes d'attache vers la droite
+      e = pr(2.4, 1);
+      if (e > 0 && !Z.narrow) {
+        ctx.setLineDash([3, 5]); ctx.strokeStyle = MU(0.35);
+        var x0 = P.right + 6, len = (Z.x1 - x0) * e; seg(x0, P.top, x0 + len, P.top); seg(x0, P.bottom, x0 + len, P.bottom);
+        ctx.setLineDash([]);
+      }
+      // Cote horizontale : largeur en signes
+      e = pr(2.8, 1);
+      if (e > 0) {
+        var cy = P.top - 16; ctx.strokeStyle = AC(0.7); ctx.fillStyle = AC(0.8);
+        seg(P.left, cy - 6, P.left, cy + 6); seg(P.left, cy, P.left + P.width * e, cy);
+        if (e >= 1) { seg(P.right, cy - 6, P.right, cy + 6); ctx.textAlign = 'center'; ctx.fillText('≈ ' + signs + ' signes', (P.left + P.right) / 2, cy - 6); }
+      }
+      // Cote verticale : nombre de lignes
+      e = pr(3.4, 1);
+      if (e > 0 && !Z.narrow) {
+        var vx = P.right + 22; ctx.strokeStyle = AC(0.7); ctx.fillStyle = AC(0.8);
+        seg(vx - 6, P.top, vx + 6, P.top); seg(vx, P.top, vx, P.top + (P.bottom - P.top) * e);
+        if (e >= 1) { seg(vx - 6, P.bottom, vx + 6, P.bottom); ctx.save(); ctx.translate(vx + 14, (P.top + P.bottom) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText(n + ' lignes', 0, 0); ctx.restore(); }
+      }
+      // Cote d'interligne, dans la marge
+      e = pr(4, 0.6);
+      if (e > 0 && n > 1) {
+        var ix = P.left - 30, y1 = lines[0].y, y2 = y1 + (lines[1].y - y1) * e; ctx.strokeStyle = AC(0.6); ctx.fillStyle = AC(0.75);
+        seg(ix - 4, y1, ix + 4, y1); seg(ix, y1, ix, y2);
+        if (e >= 1) { seg(ix - 4, lines[1].y, ix + 4, lines[1].y); ctx.save(); ctx.translate(ix - 7, (y1 + lines[1].y) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText(Math.round(lh), 0, 0); ctx.restore(); }
+      }
+      // Quadrillage
+      var cell = 20, cols = Math.floor(G.w / cell), rows = Math.floor(G.h / cell);
+      ctx.strokeStyle = MU(0.13);
+      for (k = 0; k <= rows; k++) { e = pr(4.4 + k * 0.05, 0.5); if (e > 0) seg(G.x, G.y + k * cell, G.x + cols * cell * e, G.y + k * cell); }
+      for (k = 0; k <= cols; k++) { e = pr(4.7 + k * 0.04, 0.5); if (e > 0) seg(G.x + k * cell, G.y, G.x + k * cell, G.y + rows * cell * e); }
+      // Compas et angle
+      var gcx = G.x + cols * cell * 0.58, gcy = G.y + rows * cell * 0.46, R = Math.min(cols * cell, rows * cell) * 0.4, a0 = -2.5;
+      e = pr(5.6, 1.4);
+      if (e > 0) {
+        var a1 = a0 + 2.4 * e;
+        ctx.strokeStyle = MU(0.6); seg(gcx - 6, gcy, gcx + 6, gcy); seg(gcx, gcy - 6, gcx, gcy + 6);
+        ctx.strokeStyle = e < 1 ? AC(0.75) : MU(0.6); ctx.beginPath(); ctx.arc(gcx, gcy, R, a0, a1); ctx.stroke();
+        ctx.setLineDash([3, 4]); ctx.strokeStyle = MU(0.5); seg(gcx, gcy, gcx + Math.cos(a1) * R, gcy + Math.sin(a1) * R); seg(gcx, gcy, gcx + Math.cos(a0) * R, gcy + Math.sin(a0) * R); ctx.setLineDash([]);
+        if (e >= 1) {
+          e = pr(7, 0.6); ctx.strokeStyle = AC(0.7); ctx.beginPath(); ctx.arc(gcx, gcy, 20, a0, a0 + 2.4 * e); ctx.stroke();
+          ctx.fillStyle = MU(0.9); ctx.textAlign = 'left'; ctx.fillText('R ' + Math.round(R), gcx + 10, gcy + 16);
+          if (e >= 1) { ctx.fillStyle = AC(0.85); ctx.fillText(Math.round(2.4 * 180 / Math.PI) + '°', gcx + Math.cos(a0 + 1.2) * 30 - 6, gcy + Math.sin(a0 + 1.2) * 30); }
+        }
+      }
+      // Pièce hachurée
+      var hx = G.x + cell, hy = G.y + rows * cell - 3 * cell, hw = 4 * cell, hh = 2 * cell;
+      e = pr(7.2, 0.6);
+      if (e > 0) {
+        ctx.strokeStyle = IN(0.5); ctx.strokeRect(hx, hy, hw * e, hh);
+        ctx.save(); ctx.beginPath(); ctx.rect(hx, hy, hw, hh); ctx.clip(); ctx.strokeStyle = MU(0.45);
+        for (k = 0; k < 18; k++) { var he = pr(7.7 + k * 0.05, 0.25); if (he <= 0) continue; var sx = hx - hh + k * 7; seg(sx, hy + hh, sx + hh * he, hy + hh - hh * he); }
+        ctx.restore();
+      }
+      // Renvois vers des mots du texte
+      refs.forEach(function (f, j) {
+        var e1 = pr(8.6 + j * 0.7, 0.5), e2 = pr(9 + j * 0.7, 0.8); if (e1 <= 0) return;
+        ctx.strokeStyle = AC(0.65); seg(f.x, f.y + 1, f.x + f.w * e1, f.y + 1);
+        if (e2 > 0) {
+          var sx = f.x + f.w / 2, sy = f.y + 1, ex = Z.x0 - 6, mx = sx + 12;
+          ctx.strokeStyle = MU(0.5); ctx.beginPath(); ctx.moveTo(sx, sy);
+          var p1 = Math.min(1, e2 * 3); ctx.lineTo(sx + (mx - sx) * p1, sy + (f.ly - sy) * p1);
+          if (e2 > 1 / 3) ctx.lineTo(mx + (ex - mx) * ((e2 - 1 / 3) * 1.5), f.ly);
+          ctx.stroke(); ctx.fillStyle = AC(0.7); ctx.beginPath(); ctx.arc(sx, sy, 2, 0, 6.2832); ctx.fill();
+          if (e2 >= 1) { ctx.fillStyle = MU(0.95); ctx.textAlign = 'left'; ctx.fillText(f.label, Z.x0, f.ly + 4); }
+        }
+      });
+      // Cartouche
+      var bw = Math.min(Z.x1 - Z.x0, 270), bh = 90, bx = Z.x1 - bw, by = Z.y1 - bh;
+      e = pr(10.8, 1.4);
+      if (e > 0) {
+        ctx.strokeStyle = IN(0.5); var per = 2 * (bw + bh), d = per * e, pts = [[bx + bw, by], [bx + bw, by + bh], [bx, by + bh], [bx, by]], px = bx, py = by;
+        ctx.beginPath(); ctx.moveTo(bx, by);
+        for (k = 0; k < 4 && d > 0; k++) { var qx = pts[k][0], qy = pts[k][1], ln = Math.abs(qx - px) + Math.abs(qy - py), f2 = Math.min(1, d / ln); ctx.lineTo(px + (qx - px) * f2, py + (qy - py) * f2); d -= ln; px = qx; py = qy; }
+        ctx.stroke();
+        e = pr(12.2, 0.8);
+        if (e > 0) {
+          ctx.strokeStyle = IN(0.35); seg(bx, by + 30, bx + bw * e, by + 30); seg(bx, by + 60, bx + bw * e, by + 60); seg(bx + bw * 0.5, by + 30, bx + bw * 0.5, by + 30 + 60 * e);
+          ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.globalAlpha = e;
+          ctx.font = '600 13px ' + FD; ctx.fillStyle = C.ink; ctx.fillText('Démarche', bx + 10, by + 15);
+          ctx.font = '400 11px ' + FD; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText('S. Noguès', bx + bw - 10, by + 15);
+          ctx.textAlign = 'left'; ctx.fillText('Échelle 1:1', bx + 10, by + 45); ctx.fillText('Feuille 3/3', bx + bw * 0.5 + 10, by + 45);
+          ctx.fillText(today, bx + bw * 0.5 + 10, by + 75);
+          ctx.font = '600 11px ' + FD; ctx.fillStyle = C.accent; ctx.fillText('Indice ' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(rev % 26), bx + 10, by + 75);
+          ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+        }
+      }
+      // Gomme : efface de gauche à droite avant de recommencer
+      e = pr(CYCLE - 1.8, 1.6);
+      if (e > 0) {
+        var gx = -20 + (W + 40) * e; ctx.clearRect(0, 0, Math.max(0, gx), H);
+        ctx.setLineDash([2, 6]); ctx.strokeStyle = AC(0.6); seg(gx, 0, gx, H); ctx.setLineDash([]);
+      }
+      // Réticule de dessin qui suit la souris
+      if (ptr && fine.matches) {
+        ctx.strokeStyle = AC(0.18); seg(ptr.x, 0, ptr.x, H); seg(0, ptr.y, W, ptr.y);
+        ctx.strokeStyle = AC(0.7); ctx.strokeRect(ptr.x - 4, ptr.y - 4, 8, 8);
+        ctx.font = '600 11px ' + FD; ctx.fillStyle = AC(0.85); ctx.textAlign = 'left';
+        ctx.fillText('x ' + Math.round(ptr.x) + '   y ' + Math.round(ptr.y), ptr.x + 10, ptr.y - 10);
+      }
+    }
+
+    function loop(now) {
+      raf = 0; if (!visible || document.hidden || reduce.matches) return;
+      var dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
+      t += dt; if (t >= CYCLE) { t = 0; rev++; }
+      draw(); raf = requestAnimationFrame(loop);
+    }
+    function still() { t = 17; draw(); }
+    function start() { if (reduce.matches) { still(); return; } if (!raf && visible && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+    function reset() { theme(); measure(); if (reduce.matches) still(); else draw(); }
+
+    sec.addEventListener('pointermove', function (ev) { var r = sec.getBoundingClientRect(); ptr = { x: ev.clientX - r.left, y: ev.clientY - r.top }; if (reduce.matches) still(); });
+    sec.addEventListener('pointerleave', function () { ptr = null; if (reduce.matches) still(); });
+    var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(reset, 150); });
+    document.addEventListener('visibilitychange', start);
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) start(); }).observe(sec);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', reset);
+    reduce.addEventListener('change', function () { if (reduce.matches) still(); else start(); });
+    reset(); start();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(reset);
   })();
 </script>
 </body>
