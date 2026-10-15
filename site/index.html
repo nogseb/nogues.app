@@ -15,8 +15,14 @@
 <meta property="og:url" content="https://nogues.app/">
 <meta property="og:title" content="Bricolages | Sébastien Noguès">
 <meta property="og:description" content="Expérimentations web et IA générative, tenues comme un carnet de terrain.">
+<meta property="og:image" content="https://nogues.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo nogues.app, un n en construction, et le titre Bricolages">
+<meta name="twitter:card" content="summary_large_image">
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232346D8'/%3E%3Cpath d='M18 46V20h6l16 17V20h6v26h-6L24 29v17z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <!-- Polices servies par Bunny Fonts : catalogue identique à Google Fonts, sans transfert de données vers Google -->
 <link rel="preconnect" href="https://fonts.bunny.net">
@@ -109,7 +115,33 @@
     padding-top: 1.5rem; padding-bottom: 1.5rem;
     font-family: var(--display); font-size: 0.95rem;
   }
-  .top .site { font-weight: 600; color: var(--ink); text-decoration: none; }
+  .top .site { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--ink); text-decoration: none; }
+  .top .site:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+  .wm { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.03em; }
+  .wm span { color: var(--accent); }
+
+  /* Logo : le n se construit au chargement (guides, cadre, tracé, points, remplissage, cote), puis seul le logo reste.
+     Il se reconstruit au survol. Sans animation (préférence système), le logo final s'affiche directement. */
+  .logo { width: 2.1rem; height: 2.1rem; flex: none; overflow: visible; }
+  .logo .i { stroke: var(--ink); }
+  .logo .a { stroke: var(--accent); }
+  .logo .af { fill: var(--accent); }
+  .logo .g, .logo .fr, .logo .sk, .logo .dt { opacity: 0; }
+  .logo .ct { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  .logo.build .g { stroke-dasharray: 120; animation: lg-g 3.6s cubic-bezier(.3,.6,.2,1) 0.2s both; }
+  .logo.build .fr { animation: lg-fr 3.6s ease 0.2s both; }
+  .logo.build .sk { stroke-dasharray: 1; animation: lg-sk 3.6s ease-in-out 0.2s both; }
+  .logo.build .dt { animation: lg-dt 3.6s ease 0.2s both; }
+  .logo.build .fl { animation: lg-fl 3.6s ease 0.2s both; }
+  .logo.build .ct { animation: lg-ct 3.6s ease-out 0.2s both; }
+  .logo.build .ca { animation: lg-ca 3.6s ease 0.2s both; }
+  @keyframes lg-g { 0% { stroke-dashoffset: 120; opacity: .75; } 25% { stroke-dashoffset: 0; opacity: .75; } 70% { opacity: .75; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  @keyframes lg-fr { 0%, 15% { opacity: 0; } 30%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes lg-sk { 0%, 20% { stroke-dashoffset: 1; opacity: 1; } 55% { stroke-dashoffset: 0; opacity: 1; } 80% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  @keyframes lg-dt { 0%, 40% { opacity: 0; } 50%, 80% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes lg-fl { 0%, 50% { opacity: 0; } 72%, 100% { opacity: 1; } }
+  @keyframes lg-ct { 0%, 68% { stroke-dashoffset: 1; } 90%, 100% { stroke-dashoffset: 0; } }
+  @keyframes lg-ca { 0%, 86% { opacity: 0; } 94%, 100% { opacity: 1; } }
   .top nav { display: flex; gap: 1.25rem; flex-wrap: wrap; }
   .top nav a { color: var(--muted); text-decoration: none; }
   .top nav a:hover { color: var(--ink); }
@@ -277,6 +309,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .word::before, .word::after, .l::before { display: none; }
+    .logo.build .g, .logo.build .fr, .logo.build .sk, .logo.build .dt, .logo.build .fl, .logo.build .ct, .logo.build .ca { animation: none; }
     .l { animation: none; color: var(--ink); -webkit-text-stroke: 0; }
   }
 </style>
@@ -284,7 +317,18 @@
 <body>
 
 <header class="wrap top">
-  <a class="site" href="https://nogues.app/">nogues.app</a>
+  <a class="site" href="https://nogues.app/" aria-label="nogues.app, accueil">
+    <svg class="logo build" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+      <path class="g a" d="M4 37.5 H116 M4 104 H116" stroke-width="2" fill="none"></path>
+      <rect class="fr a" x="25" y="31" width="73" height="79" fill="none" stroke-width="2" stroke-dasharray="5 5"></rect>
+      <path class="sk a" pathLength="1" d="M38 104 V38 M38 66 C38 53 48 46 61 46 C74 46 84 54 84 68 V104" stroke-width="3" fill="none"></path>
+      <g class="dt af"><circle cx="38" cy="104" r="4"></circle><circle cx="84" cy="104" r="4"></circle><circle cx="38" cy="38" r="4"></circle></g>
+      <g class="fl i" fill="none" stroke-width="17"><path d="M38 104 V38"></path><path d="M38 66 C38 53 48 46 61 46 C74 46 84 54 84 68 V104"></path></g>
+      <path class="ct a" pathLength="1" d="M29.5 18 H92.5" stroke-width="4" fill="none"></path>
+      <g class="ca a" fill="none" stroke-width="4"><path d="M29.5 10 V26 M92.5 10 V26"></path></g>
+    </svg>
+    <span class="wm">nogues<span>.app</span></span>
+  </a>
   <nav aria-label="Navigation principale">
     <a href="#experiences">Expériences</a>
     <a href="#demarche">Démarche</a>
@@ -832,6 +876,22 @@
     reduce.addEventListener('change', function () { if (reduce.matches) still(); else start(); });
     reset(); start();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(reset);
+  })();
+</script>
+<script>
+  // Logo : rejoue la construction au survol ou au focus du lien d'accueil.
+  (function () {
+    var link = document.querySelector('.top .site'), logo = link && link.querySelector('.logo');
+    if (!logo) return;
+    var busy = false;
+    function replay() {
+      if (busy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      busy = true; logo.classList.remove('build'); void logo.getBoundingClientRect(); logo.classList.add('build');
+      setTimeout(function () { busy = false; }, 3900);
+    }
+    setTimeout(function () { busy = false; }, 3900); busy = true;
+    link.addEventListener('mouseenter', replay);
+    link.addEventListener('focus', replay);
   })();
 </script>
 </body>
