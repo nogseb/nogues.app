@@ -230,6 +230,30 @@
   .card.prive { background: transparent; border-style: dashed; border-top-style: solid; }
   .card.prive .status { background: transparent; border: 1px solid var(--rule); }
 
+  /* Bouton vidéo dans une carte, au-dessus du lien qui couvre la carte */
+  .card-action { position: relative; z-index: 1; margin: -0.25rem 0 1rem; }
+  .play {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 0.85rem 0.4rem 0.6rem;
+    font: inherit; font-family: var(--display); font-size: 0.9rem; font-weight: 600; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; cursor: pointer;
+  }
+  .play:hover { border-color: var(--cat); }
+  .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .play-icon { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--cat); position: relative; flex: none; }
+  .play-icon::after { content: ""; position: absolute; left: 0.52rem; top: 0.38rem; border-style: solid; border-width: 0.32rem 0 0.32rem 0.5rem; border-color: transparent transparent transparent var(--card); }
+  .play .dur { color: var(--muted); font-weight: 400; }
+
+  /* Fenêtre vidéo (élément dialog natif : Échap, focus et arrière-plan gérés par le navigateur) */
+  .video-pop { width: min(960px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); color: var(--ink); }
+  .video-pop::backdrop { background: rgba(10, 14, 20, 0.72); }
+  .video-pop .bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.6rem 0.6rem 1rem; font-family: var(--display); }
+  .video-pop h2 { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: 0; }
+  .video-pop .close { font: inherit; font-size: 0.9rem; color: var(--ink); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 0.3rem 0.8rem; cursor: pointer; }
+  .video-pop .close:hover { border-color: var(--accent); }
+  .video-pop .close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .video-pop video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+
   /* Démarche */
   .prose { max-width: var(--measure); }
   .prose p { margin: 0 0 1rem; }
@@ -288,6 +312,7 @@
         <p class="cat"><span class="dot" aria-hidden="true"></span>Veille</p>
         <h3><a href="https://veilleiaweb.digital">Veille IA, web et marketing</a></h3>
         <p>Une veille hebdomadaire produite en grande partie par un agent. Le prompt en est à sa troisième version, avec un domaine consacré à l'innovation marketing.</p>
+        <p class="card-action"><button type="button" class="play" data-video="video-veille" aria-haspopup="dialog"><span class="play-icon" aria-hidden="true"></span>Voir la vidéo <span class="dur">30 s</span></button></p>
         <div class="foot"><span class="status">Chaque semaine</span><span>Manus.im, ChatGPT, GitHub</span></div>
       </li>
       <li class="card explo">
@@ -356,6 +381,17 @@
   </section>
 
 </main>
+
+<dialog class="video-pop" id="video-veille" aria-labelledby="video-veille-titre">
+  <div class="bar">
+    <h2 id="video-veille-titre">Veille stratégique IA &amp; web, présentation en 30 secondes</h2>
+    <button type="button" class="close" data-close>Fermer</button>
+  </div>
+  <video controls playsinline preload="none" poster="media/veille-ia-web-30s.jpg" width="1920" height="1080">
+    <source src="media/veille-ia-web-30s.mp4" type="video/mp4">
+    Votre navigateur ne lit pas cette vidéo. <a href="media/veille-ia-web-30s.mp4">Télécharger la vidéo (MP4, 2,5 Mo)</a>.
+  </video>
+</dialog>
 
 <footer class="wrap ruled">
   <p>© 2026 Sébastien Noguès, à titre personnel. Hébergement : OVH SAS, 2 rue Kellermann, 59100 Roubaix. Aucun cookie, aucune mesure d'audience.</p>
@@ -507,6 +543,28 @@
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refresh);
     reduce.addEventListener('change', function () { if (reduce.matches) still(); else start(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(readTheme);
+  })();
+</script>
+<script>
+  // Vidéos en fenêtre : ouverture depuis un bouton [data-video], lecture au clic,
+  // fermeture par le bouton, la touche Échap ou un clic à côté ; la vidéo s'arrête à la fermeture.
+  (function () {
+    document.querySelectorAll('[data-video]').forEach(function (btn) {
+      var dlg = document.getElementById(btn.dataset.video);
+      if (!dlg || typeof dlg.showModal !== 'function') {
+        var src = dlg && dlg.querySelector('source');
+        if (src) btn.addEventListener('click', function () { window.location.href = src.getAttribute('src'); });
+        return;
+      }
+      var video = dlg.querySelector('video');
+      btn.addEventListener('click', function () {
+        dlg.showModal();
+        var p = video.play(); if (p && p.catch) p.catch(function () {});
+      });
+      dlg.addEventListener('close', function () { video.pause(); btn.focus(); });
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+      dlg.querySelector('[data-close]').addEventListener('click', function () { dlg.close(); });
+    });
   })();
 </script>
 </body>
