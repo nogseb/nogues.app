@@ -665,10 +665,11 @@
   })();
 </script>
 <script>
-  // Démarche : « mise au plan ». La section se dessine comme un plan technique : repères, marge,
-  // lignes d'écriture sous le texte, cotes réelles (signes, lignes, interligne), quadrillage, compas,
-  // hachures, renvois vers des mots du texte et cartouche dont l'indice de révision change à chaque tour.
-  // Puis une gomme efface tout et le dessin recommence. Pause hors écran ; image fixe si animations réduites.
+  // Démarche : « mise au plan ». La section se dessine comme une planche technique, puis une gomme
+  // efface tout et la planche suivante se dessine. Onze planches, de l'indice A à l'indice K :
+  // A mise au plan, B vue éclatée, C rosace au compas, D coupe A-A, E moyens du bord, F engrenages,
+  // G gabarit de courbe, H spirale d'or, I relevé de terrain, J tracé de la lettre, K schéma de principe.
+  // Pause hors écran ; image fixe si animations réduites. ?indice=C dans l'adresse ouvre sur la planche C.
   (function () {
     var sec = document.getElementById('demarche');
     if (!sec || !document.createElement('canvas').getContext) return;
@@ -677,10 +678,14 @@
     sec.insertBefore(cv, sec.firstChild);
     var ctx = cv.getContext('2d');
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)'), fine = window.matchMedia('(pointer: fine)');
-    var W = 0, H = 0, P = {}, Z = {}, G = {}, lines = [], lh = 28, signs = 0, h2w = 0, h2y = 0, h2x = 0, refs = [];
+    var W = 0, H = 0, P = {}, Z = {}, G = {}, F = {}, lines = [], paras = [], rows = [], words = {}, TY = {};
+    var lh = 28, signs = 0, h2w = 0, h2y = 0, h2x = 0, refs = [];
     var C = {}, FD = '', FT = '', t = 0, rev = 0, CYCLE = 21, raf = 0, visible = true, last = 0, ptr = null;
+    var LETTERS = 'ABCDEFGHIJK', TAU = Math.PI * 2;
     var REFS = [['Lévi-Strauss', 'La Pensée sauvage, 1962'], ['bricoleur', 'bricolage, n. m.'], ['recommencer', 'indice suivant']];
+    var WORDS = ['moyens du bord', 'besoin', 'outil', 'corriger', 'recommencer', 'Sociologue'];
     var today = (function () { var d = new Date(); return ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear(); })();
+    var q0 = /[?&]indice=([a-k])/i.exec(location.search); if (q0) rev = LETTERS.indexOf(q0[1].toUpperCase());
 
     function theme() {
       var s = getComputedStyle(document.documentElement);
@@ -688,10 +693,60 @@
       FD = s.getPropertyValue('--display'); FT = s.getPropertyValue('--text');
     }
     function rgba(hex, a) { var h = hex.replace('#', ''); if (h.length === 3) h = h.replace(/(.)/g, '$1$1'); var n = parseInt(h, 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; }
+    function MU(a) { return rgba(C.muted, a); }
+    function AC(a) { return rgba(C.accent, a); }
+    function IN(a) { return rgba(C.ink, a); }
     function cl(x) { return Math.max(0, Math.min(1, x)); }
     function ease(x) { x = cl(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
     function pr(a, d) { return ease((t - a) / d); }
+    function lin(a, d) { return cl((t - a) / d); }
+    function fmt(x, d) { return x.toFixed(d).replace('.', ','); }
     function seg(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+    function cross(x, y, s) { seg(x - s, y, x + s, y); seg(x, y - s, x, y + s); }
+    function dot(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
+    // Polyligne tracée sur une fraction e de sa longueur
+    function path(pts, e, close) {
+      if (e <= 0 || pts.length < 2) return;
+      if (close) pts = pts.concat([pts[0]]);
+      var d = [], L = 0, i;
+      for (i = 1; i < pts.length; i++) { var l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); d.push(l); L += l; }
+      var r = L * Math.min(1, e);
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (i = 1; i < pts.length && r > 0; i++) { var f = d[i - 1] ? Math.min(1, r / d[i - 1]) : 1; ctx.lineTo(pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f); r -= d[i - 1]; }
+      ctx.stroke();
+    }
+    function pointAt(pts, e) {
+      var d = [], L = 0, i;
+      for (i = 1; i < pts.length; i++) { var l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); d.push(l); L += l; }
+      var r = L * cl(e);
+      for (i = 1; i < pts.length; i++) { if (r <= d[i - 1] || i === pts.length - 1) { var f = d[i - 1] ? Math.min(1, r / d[i - 1]) : 1; return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]; } r -= d[i - 1]; }
+      return pts[pts.length - 1];
+    }
+    function arcP(cx, cy, r, a0, a1, e) { if (e <= 0) return; ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * cl(e), a1 < a0); ctx.stroke(); }
+    function label(s, x, y, align, col, weight, size) { ctx.font = (weight || 600) + ' ' + (size || 11) + 'px ' + FD; ctx.textAlign = align || 'left'; ctx.fillStyle = col; ctx.fillText(s, x, y); }
+    function head(x, y, ang, s) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Math.cos(ang - 0.4) * s, y - Math.sin(ang - 0.4) * s); ctx.lineTo(x - Math.cos(ang + 0.4) * s, y - Math.sin(ang + 0.4) * s); ctx.closePath(); ctx.fill(); }
+    function bez(p0, p1, p2, p3, n) {
+      var pts = [];
+      for (var i = 0; i <= n; i++) { var u = i / n, v = 1 - u; pts.push([v * v * v * p0[0] + 3 * v * v * u * p1[0] + 3 * v * u * u * p2[0] + u * u * u * p3[0], v * v * v * p0[1] + 3 * v * v * u * p1[1] + 3 * v * u * u * p2[1] + u * u * u * p3[1]]); }
+      return pts;
+    }
+    function rect(x, y, w, h) { return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]; }
+    // Roue dentée : dent k centrée sur l'angle rot + k * pas ; module m (saillie m, creux 1,25 m)
+    function gearPts(cx, cy, r, T, rot, m) {
+      var pts = [], st = TAU / T, ro = r + m, ri = r - 1.25 * m;
+      for (var k = 0; k < T; k++) {
+        var c = rot + k * st;
+        [[ri, c - st * 0.28], [ro, c - st * 0.16], [ro, c + st * 0.16], [ri, c + st * 0.28]].forEach(function (q) { pts.push([cx + q[0] * Math.cos(q[1]), cy + q[0] * Math.sin(q[1])]); });
+      }
+      return pts;
+    }
+    function compass(x, y, r, ang) {
+      var tx = x + Math.cos(ang) * r, ty = y + Math.sin(ang) * r, mx = (x + tx) / 2, my = (y + ty) / 2, nx = -(ty - y) / r, ny = (tx - x) / r;
+      if (ny > 0) { nx = -nx; ny = -ny; }
+      var hx = mx + nx * r * 0.42, hy = my + ny * r * 0.42;
+      ctx.strokeStyle = IN(0.45); ctx.lineWidth = 1.5; seg(x, y, hx, hy); seg(hx, hy, tx, ty); ctx.lineWidth = 1;
+      ctx.fillStyle = IN(0.5); dot(hx, hy, 2.5); ctx.fillStyle = AC(0.9); dot(tx, ty, 2);
+    }
     function wordRect(word, root) {
       var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
       while ((n = w.nextNode())) {
@@ -712,16 +767,33 @@
       else Z = { narrow: false, x0: P.right + 56, x1: W - padR, y0: hb.top - r.top, y1: H - 26 };
       var zw = Z.x1 - Z.x0, zh = Z.y1 - Z.y0;
       G = Z.narrow ? { x: Z.x0, y: Z.y0, w: zw * 0.55, h: Math.min(150, zh - 110) } : { x: Z.x0 + zw * 0.44, y: Z.y0, w: zw * 0.56, h: Math.min(220, zh * 0.55) };
-      lines = [];
+      F = { x: Z.x0, y: Z.y0, w: zw, h: Math.max(110, zh - 90 - 22) };
+      lines = []; paras = []; rows = [];
       prose.querySelectorAll('p').forEach(function (p) {
         var b = p.getBoundingClientRect(); lh = parseFloat(getComputedStyle(p).lineHeight) || 28;
         var n = Math.max(1, Math.round(b.height / lh));
         for (var i = 0; i < n; i++) lines.push({ y: b.top - r.top + (i + 0.8) * lh, x0: b.left - r.left, x1: b.right - r.left });
+        paras.push({ top: b.top - r.top, bottom: b.bottom - r.top });
+        // Longueur réelle de chaque ligne de texte
+        var rg = document.createRange(); rg.selectNodeContents(p);
+        var qs = Array.prototype.slice.call(rg.getClientRects()).filter(function (q) { return q.width > 1; }).sort(function (a, b) { return a.top - b.top; }), cur = null;
+        qs.forEach(function (q) {
+          if (cur && Math.abs(q.top - cur.top) < lh / 2) { cur.l = Math.min(cur.l, q.left); cur.r = Math.max(cur.r, q.right); }
+          else { cur = { top: q.top, l: q.left, r: q.right }; rows.push(cur); }
+        });
       });
+      rows = rows.map(function (q) { return { w: q.r - q.l, y: q.top - r.top }; });
       var fs = parseFloat(getComputedStyle(prose).fontSize) || 17;
       ctx.font = '400 ' + fs + 'px ' + FT;
       signs = Math.round(P.width / (ctx.measureText('Le titre est un clin d\'œil à Claude Lévi-Strauss, pour qui').width / 58));
       var hr = wordRect('Démarche', h2) || hb; h2w = Math.round(hr.width); h2x = hr.left - r.left; h2y = hr.top - r.top;
+      // Métriques typographiques du titre (planche J)
+      var hcs = getComputedStyle(h2);
+      ctx.font = hcs.fontStyle + ' ' + hcs.fontWeight + ' ' + hcs.fontSize + ' ' + hcs.fontFamily;
+      var mD = ctx.measureText('D'), mx = ctx.measureText('x'), asc = mD.fontBoundingBoxAscent;
+      TY = { fs: parseFloat(hcs.fontSize), cap: mD.actualBoundingBoxAscent, xh: mx.actualBoundingBoxAscent, base: asc ? hr.top - r.top + asc : hr.bottom - r.top - hr.height * 0.22 };
+      words = {};
+      WORDS.forEach(function (w) { var q = wordRect(w, prose); if (q) words[w] = { x: q.left - r.left, y: q.bottom - r.top, top: q.top - r.top, w: q.width, h: q.height }; });
       refs = [];
       if (!Z.narrow) {
         REFS.forEach(function (d) {
@@ -734,12 +806,20 @@
       }
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      var n = lines.length, a, k, e;
-      ctx.lineCap = 'round'; ctx.lineWidth = 1; ctx.setLineDash([]);
-      var MU = function (al) { return rgba(C.muted, al); }, AC = function (al) { return rgba(C.accent, al); }, IN = function (al) { return rgba(C.ink, al); };
+    // Renvoi d'un mot du texte vers un point de la planche (écrans larges seulement)
+    function wordLink(key, e1, e2, tx, ty) {
+      var q = words[key]; if (!q || e1 <= 0) return;
+      ctx.strokeStyle = AC(0.7); seg(q.x, q.y + 1, q.x + q.w * e1, q.y + 1);
+      if (Z.narrow || e2 <= 0) return;
+      var sx = q.x + q.w + 2, sy = q.y + 5;
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = MU(0.5); path([[sx, sy], [F.x - 14, sy], [tx, ty]], e2); ctx.setLineDash([]);
+      ctx.fillStyle = AC(0.8); dot(sx, sy, 2);
+      if (e2 >= 1) { ctx.fillStyle = AC(0.8); head(tx, ty, Math.atan2(ty - sy, tx - F.x + 14), 6); }
+    }
 
+    // ---------- A. Mise au plan ----------
+    function plateA() {
+      var n = lines.length, k, e;
       // Repères aux quatre coins du texte
       e = pr(0, 0.6);
       if (e > 0) {
@@ -795,12 +875,12 @@
         if (e >= 1) { seg(ix - 4, lines[1].y, ix + 4, lines[1].y); ctx.save(); ctx.translate(ix - 7, (y1 + lines[1].y) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText(Math.round(lh), 0, 0); ctx.restore(); }
       }
       // Quadrillage
-      var cell = 20, cols = Math.floor(G.w / cell), rows = Math.floor(G.h / cell);
+      var cell = 20, cols = Math.floor(G.w / cell), rws = Math.floor(G.h / cell);
       ctx.strokeStyle = MU(0.13);
-      for (k = 0; k <= rows; k++) { e = pr(4.4 + k * 0.05, 0.5); if (e > 0) seg(G.x, G.y + k * cell, G.x + cols * cell * e, G.y + k * cell); }
-      for (k = 0; k <= cols; k++) { e = pr(4.7 + k * 0.04, 0.5); if (e > 0) seg(G.x + k * cell, G.y, G.x + k * cell, G.y + rows * cell * e); }
+      for (k = 0; k <= rws; k++) { e = pr(4.4 + k * 0.05, 0.5); if (e > 0) seg(G.x, G.y + k * cell, G.x + cols * cell * e, G.y + k * cell); }
+      for (k = 0; k <= cols; k++) { e = pr(4.7 + k * 0.04, 0.5); if (e > 0) seg(G.x + k * cell, G.y, G.x + k * cell, G.y + rws * cell * e); }
       // Compas et angle
-      var gcx = G.x + cols * cell * 0.58, gcy = G.y + rows * cell * 0.46, R = Math.min(cols * cell, rows * cell) * 0.4, a0 = -2.5;
+      var gcx = G.x + cols * cell * 0.58, gcy = G.y + rws * cell * 0.46, R = Math.min(cols * cell, rws * cell) * 0.4, a0 = -2.5;
       e = pr(5.6, 1.4);
       if (e > 0) {
         var a1 = a0 + 2.4 * e;
@@ -814,7 +894,7 @@
         }
       }
       // Pièce hachurée
-      var hx = G.x + cell, hy = G.y + rows * cell - 3 * cell, hw = 4 * cell, hh = 2 * cell;
+      var hx = G.x + cell, hy = G.y + rws * cell - 3 * cell, hw = 4 * cell, hh = 2 * cell;
       e = pr(7.2, 0.6);
       if (e > 0) {
         ctx.strokeStyle = IN(0.5); ctx.strokeRect(hx, hy, hw * e, hh);
@@ -835,28 +915,448 @@
           if (e2 >= 1) { ctx.fillStyle = MU(0.95); ctx.textAlign = 'left'; ctx.fillText(f.label, Z.x0, f.ly + 4); }
         }
       });
-      // Cartouche
-      var bw = Math.min(Z.x1 - Z.x0, 270), bh = 90, bx = Z.x1 - bw, by = Z.y1 - bh;
-      e = pr(10.8, 1.4);
-      if (e > 0) {
-        ctx.strokeStyle = IN(0.5); var per = 2 * (bw + bh), d = per * e, pts = [[bx + bw, by], [bx + bw, by + bh], [bx, by + bh], [bx, by]], px = bx, py = by;
-        ctx.beginPath(); ctx.moveTo(bx, by);
-        for (k = 0; k < 4 && d > 0; k++) { var qx = pts[k][0], qy = pts[k][1], ln = Math.abs(qx - px) + Math.abs(qy - py), f2 = Math.min(1, d / ln); ctx.lineTo(px + (qx - px) * f2, py + (qy - py) * f2); d -= ln; px = qx; py = qy; }
-        ctx.stroke();
-        e = pr(12.2, 0.8);
-        if (e > 0) {
-          ctx.strokeStyle = IN(0.35); seg(bx, by + 30, bx + bw * e, by + 30); seg(bx, by + 60, bx + bw * e, by + 60); seg(bx + bw * 0.5, by + 30, bx + bw * 0.5, by + 30 + 60 * e);
-          ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.globalAlpha = e;
-          ctx.font = '600 13px ' + FD; ctx.fillStyle = C.ink; ctx.fillText('Démarche', bx + 10, by + 15);
-          ctx.font = '400 11px ' + FD; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText('S. Noguès', bx + bw - 10, by + 15);
-          ctx.textAlign = 'left'; ctx.fillText('Échelle 1:1', bx + 10, by + 45); ctx.fillText('Feuille 3/3', bx + bw * 0.5 + 10, by + 45);
-          ctx.fillText(today, bx + bw * 0.5 + 10, by + 75);
-          ctx.font = '600 11px ' + FD; ctx.fillStyle = C.accent; ctx.fillText('Indice ' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(rev % 26), bx + 10, by + 75);
-          ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+      return ['Échelle 1:1', 'Feuille 3/3'];
+    }
+
+    // ---------- B. Vue éclatée ----------
+    function plateB() {
+      var j, e, NOM = ['Besoin', 'Outil', 'Essai', 'Correction'];
+      // Numéros de paragraphe dans la marge
+      if (P.left > 44) paras.forEach(function (p, i) {
+        var e = pr(0.2 + i * 0.4, 0.7); if (e <= 0) return;
+        var y = p.top + lh * 0.45; ctx.strokeStyle = AC(0.7); arcP(P.left - 28, y, 9, -1.5708, 4.7124, e);
+        if (e >= 1) { ctx.textBaseline = 'middle'; label(String.fromCharCode(167) + (i + 1), P.left - 28, y + 0.5, 'center', AC(0.9), 600, 10); ctx.textBaseline = 'alphabetic'; }
+      });
+      var a = Math.min(F.w * 0.24, 76), b = a * 0.5, th = 9, cx = F.x + a + 14;
+      var gmax = Math.max(12, Math.min(34, (F.h - 8 - 2 * b - th) / 3 - th));
+      var ex = pr(3.4, 2), base = F.y + F.h - 4 - th - b, ys = [];
+      // Axe d'éclatement
+      e = pr(3, 0.8);
+      if (e > 0) { ctx.setLineDash([10, 3, 2, 3]); ctx.strokeStyle = AC(0.55); var yb = base + b + th + 4, yt = base - 3 * (th + gmax) - b - 6; seg(cx, yb, cx, yb + (yt - yb) * e); ctx.setLineDash([]); }
+      for (j = 0; j < 4; j++) {
+        var cy = base - j * (th + gmax * ex); ys.push(cy);
+        e = pr(0.4 + j * 0.6, 0.9); if (e <= 0) continue;
+        var sil = [[cx, cy - b], [cx + a, cy], [cx + a, cy + th], [cx, cy + b + th], [cx - a, cy + th], [cx - a, cy]];
+        ctx.globalAlpha = e; ctx.fillStyle = C.paper; ctx.beginPath(); sil.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = e < 1 ? AC(0.75) : IN(0.55); path(sil, e, true);
+        if (e >= 1) {
+          ctx.strokeStyle = IN(0.4); path([[cx - a, cy], [cx, cy + b], [cx + a, cy]], 1); seg(cx, cy + b, cx, cy + b + th);
+          ctx.strokeStyle = MU(0.6); ctx.beginPath();
+          if (j % 2 === 0) ctx.ellipse(cx, cy, a * 0.22, b * 0.22, 0, 0, TAU);
+          else { ctx.ellipse(cx - a * 0.45, cy, a * 0.1, b * 0.1, 0, 0, TAU); ctx.moveTo(cx + a * 0.55, cy); ctx.ellipse(cx + a * 0.45, cy, a * 0.1, b * 0.1, 0, 0, TAU); }
+          ctx.stroke();
         }
       }
-      // Gomme : efface de gauche à droite avant de recommencer
-      e = pr(CYCLE - 1.8, 1.6);
+      // Repères et nomenclature
+      var bx = cx + a + Math.max(36, Math.min(80, F.w * 0.16));
+      for (j = 0; j < 4; j++) {
+        e = pr(5.6 + j * 0.5, 0.7); if (e <= 0) continue;
+        var y = ys[j], sx = cx + a * 0.5, sy = y + b * 0.5 + th * 0.5;
+        ctx.strokeStyle = MU(0.6); path([[sx, sy], [bx - 9, y]], e); ctx.fillStyle = MU(0.8); dot(sx, sy, 1.8);
+        if (e >= 1) {
+          ctx.strokeStyle = AC(0.75); ctx.beginPath(); ctx.arc(bx, y, 9, 0, TAU); ctx.stroke();
+          ctx.textBaseline = 'middle'; label(String(j + 1), bx, y + 0.5, 'center', AC(0.9)); label(NOM[j], bx + 15, y + 0.5, 'left', MU(0.95), 400); ctx.textBaseline = 'alphabetic';
+        }
+      }
+      return ['Échelle 1:2', 'Vue éclatée'];
+    }
+
+    // ---------- C. Rosace au compas ----------
+    function plateC() {
+      var e, k, mx = (P.left + P.right) / 2, my = (P.top + P.bottom) / 2;
+      // Tracé régulateur du bloc de texte
+      ctx.strokeStyle = MU(0.2);
+      path([[P.left, P.top], [P.right, P.bottom]], pr(0.2, 1.4));
+      path([[P.right, P.top], [P.left, P.bottom]], pr(0.6, 1.4));
+      e = pr(1.8, 0.5); if (e > 0) { ctx.strokeStyle = AC(0.6 * e); cross(mx, my, 6); ctx.beginPath(); ctx.arc(mx, my, 3.5, 0, TAU); ctx.stroke(); }
+      var R = Math.min(F.w, F.h) * 0.34, cx = F.x + F.w * 0.5, cy = F.y + F.h * 0.52;
+      e = pr(0.4, 0.6);
+      if (e > 0) { ctx.strokeStyle = MU(0.6 * e); cross(cx, cy, 6); ctx.setLineDash([3, 5]); ctx.strokeStyle = MU(0.35 * e); seg(cx - R - 18, cy, cx + R + 18, cy); ctx.setLineDash([]); }
+      // Le cercle, bras du compas visible pendant le tracé
+      e = pr(1, 1.4);
+      if (e > 0) { ctx.strokeStyle = e < 1 ? AC(0.75) : MU(0.6); arcP(cx, cy, R, 0, TAU, e); if (e < 1) compass(cx, cy, R, TAU * e); }
+      // Six arcs de même ouverture, la pointe piquée sur le cercle
+      for (k = 0; k < 6; k++) {
+        var pa = k * Math.PI / 3, px = cx + R * Math.cos(pa), py = cy + R * Math.sin(pa);
+        e = pr(2.6 + k * 0.75, 0.7); if (e <= 0) continue;
+        ctx.fillStyle = AC(0.8); dot(px, py, 2.2);
+        var s0 = pa + Math.PI * 2 / 3, s1 = pa + Math.PI * 4 / 3;
+        ctx.strokeStyle = e < 1 ? AC(0.75) : IN(0.5); arcP(px, py, R, s0, s1, e);
+        if (e < 1) compass(px, py, R, s0 + (s1 - s0) * e);
+      }
+      var hex = []; for (k = 0; k <= 6; k++) hex.push([cx + R * Math.cos(k * Math.PI / 3), cy + R * Math.sin(k * Math.PI / 3)]);
+      ctx.strokeStyle = MU(0.55); path(hex, pr(7.4, 1.2));
+      ctx.strokeStyle = AC(0.7); path([hex[0], hex[2], hex[4], hex[0]], pr(8.6, 1));
+      e = pr(9.6, 0.6);
+      if (e > 0) {
+        ctx.globalAlpha = e;
+        ctx.strokeStyle = AC(0.7); arcP(cx, cy, 22, 0, Math.PI / 3, 1);
+        label('60°', cx + 30 * Math.cos(0.52), cy + 30 * Math.sin(0.52) + 4, 'left', AC(0.9));
+        ctx.setLineDash([3, 4]); ctx.strokeStyle = MU(0.5); seg(cx, cy, hex[4][0], hex[4][1]); ctx.setLineDash([]);
+        label('R ' + Math.round(R), cx - 10, cy - 8, 'right', MU(0.9));
+        ctx.globalAlpha = 1;
+      }
+      return ['Échelle 1:1', 'Rosace au compas'];
+    }
+
+    // ---------- D. Coupe A-A ----------
+    function plateD() {
+      var e, k, n = rows.length; if (!n) return ['Échelle 1:1', 'Coupe A-A'];
+      // Plan de coupe à travers le texte
+      var lx = Math.min(P.right + 10, W - 6), y0 = P.top - 20, y1 = P.bottom + 8;
+      e = pr(0.3, 1.4);
+      if (e > 0) { ctx.setLineDash([14, 4, 2, 4]); ctx.strokeStyle = AC(0.6); seg(lx, y0, lx, y0 + (y1 - y0) * e); ctx.setLineDash([]); }
+      e = pr(1.6, 0.5);
+      if (e > 0) {
+        ctx.globalAlpha = e; ctx.strokeStyle = AC(0.85); ctx.fillStyle = AC(0.85); ctx.lineWidth = 2;
+        [y0, y1].forEach(function (y) { seg(lx, y, lx - 16, y); head(lx - 18, y, Math.PI, 7); });
+        ctx.lineWidth = 1; label('A', lx - 14, y0 - 8, 'center', AC(0.9)); label('A', lx - 14, y1 + 16, 'center', AC(0.9));
+        ctx.globalAlpha = 1;
+      }
+      // Profil : une barre par ligne de texte, à sa longueur réelle
+      var mxw = 0, km = 0; rows.forEach(function (q, i) { if (q.w > mxw) { mxw = q.w; km = i; } });
+      var top = F.y + 24, pitch = Math.min(16, (F.h - 30) / n), bh = Math.max(3, pitch * 0.62), s = (F.w - 74) / mxw, x0 = F.x + 6;
+      e = pr(2.4, 0.6);
+      if (e > 0) {
+        ctx.globalAlpha = e; label('COUPE A-A', x0, F.y + 10, 'left', IN(0.85)); var tw = ctx.measureText('COUPE A-A').width;
+        ctx.strokeStyle = IN(0.5); seg(x0, F.y + 14, x0 + tw, F.y + 14);
+        label(n + ' lignes', x0 + tw + 12, F.y + 10, 'left', MU(0.9), 400); ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = MU(0.5); path([[x0, top - 4], [x0, top + n * pitch]], pr(2.6, 0.8));
+      for (k = 0; k < n; k++) {
+        e = pr(3 + k * (4 / n), 0.7); if (e <= 0) continue;
+        ctx.strokeStyle = IN(0.55); ctx.strokeRect(x0, top + k * pitch, rows[k].w * s * e, bh);
+      }
+      e = lin(7.6, 2.2);
+      if (e > 0) {
+        ctx.save(); ctx.beginPath(); for (k = 0; k < n; k++) ctx.rect(x0, top + k * pitch, rows[k].w * s, bh); ctx.clip();
+        ctx.strokeStyle = MU(0.5); var hg = n * pitch;
+        for (var hx = x0 - hg; hx < x0 - hg + (F.w + hg) * e; hx += 5) seg(hx, top + hg, hx + hg, top);
+        ctx.restore();
+      }
+      e = pr(10, 0.6);
+      if (e > 0) { ctx.globalAlpha = e; ctx.textBaseline = 'middle'; label(Math.round(mxw) + ' px', x0 + mxw * s + 6, top + km * pitch + bh / 2, 'left', AC(0.9)); ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; }
+      return [s < 1 ? 'Échelle 1:' + fmt(1 / s, 1) : 'Échelle ' + fmt(s, 1) + ':1', 'Coupe A-A'];
+    }
+
+    // ---------- E. Moyens du bord ----------
+    var OBJ = [
+      function (x, y, s, e) { path(gearPts(x, y, s * 0.82, 10, 0.2, s * 0.16), e, true); arcP(x, y, s * 0.28, 0, TAU, e); },
+      function (x, y, s, e) {
+        path(rect(x - s * 0.5, y - s, s, s * 0.36), e, true);
+        var th = [[x - s * 0.22, y - s * 0.64]]; for (var i = 0; i < 9; i++) th.push([x + (i % 2 ? -0.22 : 0.22) * s, y - s * 0.55 + i * s * 0.17]); th.push([x, y + s * 1.05]);
+        path(th, e);
+      },
+      function (x, y, s, e) { var h = []; for (var i = 0; i < 6; i++) h.push([x + s * Math.cos(i * Math.PI / 3 + Math.PI / 6), y + s * Math.sin(i * Math.PI / 3 + Math.PI / 6)]); path(h, e, true); arcP(x, y, s * 0.48, 0, TAU, e); },
+      function (x, y, s, e) { var z = [[x - s * 1.25, y]]; for (var i = 0; i <= 8; i++) z.push([x - s + i * s / 4, y + (i % 2 ? -1 : 1) * s * 0.45]); z.push([x + s * 1.25, y]); path(z, e); },
+      function (x, y, s, e) {
+        arcP(x - s * 0.7, y, s * 0.42, 0, TAU, e);
+        path([[x - s * 0.28, y - s * 0.1], [x + s * 1.1, y - s * 0.1], [x + s * 1.1, y + s * 0.3], [x + s * 0.92, y + s * 0.3], [x + s * 0.92, y + s * 0.1], [x + s * 0.72, y + s * 0.1], [x + s * 0.72, y + s * 0.36], [x + s * 0.52, y + s * 0.36], [x + s * 0.52, y + s * 0.1], [x - s * 0.28, y + s * 0.1]], e);
+      },
+      function (x, y, s, e) {
+        path(rect(x - s * 1.2, y - s * 0.3, s * 2.4, s * 0.6), e, true);
+        for (var i = 0, n = Math.floor(11 * e); i < n; i++) { var tx = x - s * 1.1 + i * s * 0.22; seg(tx, y - s * 0.3, tx, y - s * 0.3 + s * (i % 5 ? 0.15 : 0.3)); }
+      }
+    ];
+    function plateE() {
+      var e, k, q = words['moyens du bord'];
+      var cw = F.w / 3, ch = Math.min((F.h - 4) / 2, cw * 0.95), gy = F.y + 2;
+      var NOMS = ['engrenage', 'vis', 'écrou', 'ressort', 'clé', 'réglet'], KEEP = [0, 2, 3];
+      if (q) {
+        e = pr(0.3, 1.2);
+        if (e > 0) { ctx.strokeStyle = AC(0.75); ctx.lineWidth = 1.3; ctx.beginPath(); ctx.ellipse(q.x + q.w / 2, q.top + q.h / 2, q.w / 2 + 10, q.h / 2 + 5, -0.04, -2.2, -2.2 + 6.7 * e); ctx.stroke(); ctx.lineWidth = 1; }
+        if (!Z.narrow) { e = pr(1.4, 1); if (e > 0) { var sx = q.x + q.w + 8, sy = q.y + 5; ctx.setLineDash([3, 4]); ctx.strokeStyle = MU(0.5); path([[sx, sy], [F.x - 6, sy]], e); ctx.setLineDash([]); if (e >= 1) { ctx.fillStyle = AC(0.8); head(F.x - 4, sy, 0, 6); } } }
+      }
+      for (k = 0; k < 6; k++) {
+        var x = F.x + (k % 3) * cw, y = gy + Math.floor(k / 3) * ch;
+        e = pr(0.6 + k * 0.15, 0.6); if (e > 0) { ctx.setLineDash([2, 4]); ctx.strokeStyle = MU(0.35); path(rect(x + 3, y + 3, cw - 6, ch - 6), e, true); ctx.setLineDash([]); }
+        e = pr(2 + k * 0.8, 1);
+        if (e > 0) { var sz = Math.min(cw, ch) * 0.24; ctx.strokeStyle = e < 1 ? AC(0.75) : IN(0.6); OBJ[k](x + cw / 2, y + ch / 2 - 8, sz, e); }
+        e = pr(2.6 + k * 0.8, 0.5);
+        if (e > 0) { ctx.globalAlpha = e; label('n° ' + (k + 1) + '  ' + NOMS[k], x + cw / 2, y + ch - 11, 'center', MU(0.95), 400); ctx.globalAlpha = 1; }
+      }
+      // Pièces retenues pour le réemploi
+      KEEP.forEach(function (k, j) {
+        var e = pr(8.4 + j * 0.5, 0.6); if (e <= 0) return;
+        var x = F.x + (k % 3) * cw, y = gy + Math.floor(k / 3) * ch;
+        ctx.strokeStyle = AC(0.85); ctx.lineWidth = 1.5; path(rect(x + 3, y + 3, cw - 6, ch - 6), e, true); ctx.lineWidth = 1;
+        if (e >= 1) label('retenu', x + cw - 9, y + 16, 'right', AC(0.9));
+      });
+      return ['Inventaire 6 pièces', 'Moyens du bord'];
+    }
+
+    // ---------- F. Engrenages ----------
+    function plateF() {
+      var T = [20, 12, 16], A1 = -0.35, A2 = 0.55, NOM = ['besoin', 'outil', 'usage'], e, i;
+      var m = Math.max(2, Math.min((F.w - 16) / 46, (F.h - 26) / 23));
+      var r = T.map(function (z) { return m * z / 2; });
+      var c = [[0, 0]]; c.push([c[0][0] + (r[0] + r[1]) * Math.cos(A1), c[0][1] + (r[0] + r[1]) * Math.sin(A1)]); c.push([c[1][0] + (r[1] + r[2]) * Math.cos(A2), c[1][1] + (r[1] + r[2]) * Math.sin(A2)]);
+      var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      c.forEach(function (q, k) { x0 = Math.min(x0, q[0] - r[k] - m); x1 = Math.max(x1, q[0] + r[k] + m); y0 = Math.min(y0, q[1] - r[k] - m); y1 = Math.max(y1, q[1] + r[k] + m); });
+      var ox = F.x + (F.w - (x1 - x0)) / 2 - x0, oy = F.y + 18 + (F.h - 18 - (y1 - y0)) / 2 - y0;
+      c = c.map(function (q) { return [q[0] + ox, q[1] + oy]; });
+      // Rotation : démarrage progressif, rapports de denture respectés
+      var tt = Math.max(0, t - 5), rot = [0.4 * (tt < 1 ? tt * tt / 2 : tt - 0.5)], st = T.map(function (z) { return TAU / z; });
+      rot.push(A1 + Math.PI + st[1] / 2 - (rot[0] - A1) * T[0] / T[1]);
+      rot.push(A2 + Math.PI + st[2] / 2 - (rot[1] - A2) * T[1] / T[2]);
+      for (i = 0; i < 3; i++) {
+        var x = c[i][0], y = c[i][1], R = r[i];
+        e = pr(0.3 + i * 0.3, 0.6);
+        if (e > 0) { ctx.setLineDash([10, 3, 2, 3]); ctx.strokeStyle = MU(0.45 * e); var L = R + m + 8; seg(x - L, y, x + L, y); seg(x, y - L, x, y + L); ctx.setLineDash([]); }
+        e = pr(1 + i * 0.6, 1);
+        if (e > 0) { ctx.setLineDash([6, 3, 1, 3]); ctx.strokeStyle = AC(0.5); arcP(x, y, R, -1.5708, -1.5708 + TAU, e); ctx.setLineDash([]); }
+        e = pr(2.8 + i * 0.7, 1.2);
+        if (e > 0) {
+          ctx.strokeStyle = e < 1 ? AC(0.8) : IN(0.6); ctx.lineWidth = 1.2; path(gearPts(x, y, R, T[i], rot[i], m), e, true); ctx.lineWidth = 1;
+          ctx.strokeStyle = IN(0.5); arcP(x, y, m * 1.7, rot[i], rot[i] + TAU, e);
+          if (e >= 1) { ctx.fillStyle = IN(0.5); dot(x + Math.cos(rot[i]) * m * 1.7, y + Math.sin(rot[i]) * m * 1.7, 1.8); }
+        }
+        e = pr(6.6 + i * 0.4, 0.6);
+        if (e > 0) { ctx.globalAlpha = e; label('Z ' + T[i], x, y + m * 3.6 + 4, 'center', MU(0.95)); label(NOM[i], x, y - m * 2.6, 'center', AC(0.9), 400); ctx.globalAlpha = 1; }
+      }
+      // Sens de rotation
+      e = pr(5, 0.8);
+      if (e > 0) { var rr = r[0] + m + 7, b0 = 2.3, b1 = b0 + 0.9 * e; ctx.strokeStyle = AC(0.7); arcP(c[0][0], c[0][1], rr, b0, b1, 1); if (e >= 1) { ctx.fillStyle = AC(0.8); head(c[0][0] + Math.cos(b1) * rr, c[0][1] + Math.sin(b1) * rr, b1 + Math.PI / 2, 6); } }
+      e = pr(8, 0.6);
+      if (e > 0) { ctx.globalAlpha = e; label('i = ' + T[0] + '/' + T[2] + ' = ' + fmt(T[0] / T[2], 2), F.x, F.y + 10, 'left', IN(0.85)); ctx.globalAlpha = 1; }
+      wordLink('outil', pr(8.8, 0.5), pr(9.2, 1), c[1][0] - r[1] - m - 4, c[1][1]);
+      return ['Module ' + fmt(m, 1), 'Engrenages'];
+    }
+
+    // ---------- G. Gabarit de courbe ----------
+    function plateG() {
+      var e, k, bx = F.x + 16, bw = F.w - 32, by = F.y + 18, bh = F.h - 34;
+      var Q = [[bx, by + bh * 0.95], [bx + bw * 0.2, by], [bx + bw * 0.6, by + bh], [bx + bw, by + bh * 0.08]];
+      var Q2 = [bx + bw * 0.8, by + bh * 0.45], NAMES = ['P0', 'P1', 'P2', 'P3'], OFF = [[-4, 16], [0, -8], [0, 16], [4, -8]];
+      var q = words.corriger;
+      if (q) {
+        e = pr(0.3, 1);
+        if (e > 0) { var wv = []; for (var i = 0; i <= 24; i++) wv.push([q.x + q.w * i / 24, q.y + 2 + Math.sin(i * 1.3) * 1.6]); ctx.strokeStyle = AC(0.8); path(wv, e); }
+        e = pr(1.3, 0.5);
+        if (e > 0 && P.left > 44) { ctx.globalAlpha = e; label('v2', P.left - 14, q.y - 4, 'right', AC(0.9)); ctx.globalAlpha = 1; }
+      }
+      for (k = 0; k < 4; k++) {
+        e = pr(0.4 + k * 0.3, 0.4); if (e <= 0) continue;
+        ctx.globalAlpha = e; ctx.strokeStyle = IN(0.6); ctx.strokeRect(Q[k][0] - 3, Q[k][1] - 3, 6, 6);
+        label(NAMES[k], Q[k][0] + OFF[k][0], Q[k][1] + OFF[k][1], k === 0 ? 'left' : k === 3 ? 'right' : 'center', MU(0.95)); ctx.globalAlpha = 1;
+      }
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = MU(0.5); path(Q, pr(1.6, 1.2)); ctx.setLineDash([]);
+      // Construction de Casteljau
+      var tt = lin(3, 4.5), corr = t > 8;
+      if (tt > 0) {
+        var v1 = bez(Q[0], Q[1], Q[2], Q[3], 80).slice(0, Math.max(2, Math.round(80 * tt) + 1));
+        if (corr) ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = corr ? MU(0.55) : AC(0.85); ctx.lineWidth = corr ? 1 : 1.6; path(v1, 1); ctx.lineWidth = 1; ctx.setLineDash([]);
+        if (tt < 1) {
+          var lerp = function (p, q2) { return [p[0] + (q2[0] - p[0]) * tt, p[1] + (q2[1] - p[1]) * tt]; };
+          var l1 = [lerp(Q[0], Q[1]), lerp(Q[1], Q[2]), lerp(Q[2], Q[3])], l2 = [lerp(l1[0], l1[1]), lerp(l1[1], l1[2])], pt = lerp(l2[0], l2[1]);
+          ctx.strokeStyle = MU(0.6); path(l1, 1); ctx.fillStyle = MU(0.8); l1.forEach(function (p) { dot(p[0], p[1], 2); });
+          ctx.strokeStyle = AC(0.6); path(l2, 1); ctx.fillStyle = AC(0.7); l2.forEach(function (p) { dot(p[0], p[1], 2); });
+          ctx.fillStyle = AC(1); dot(pt[0], pt[1], 3.2);
+          label('t = ' + fmt(tt, 2), pt[0] + 8, pt[1] - 8, 'left', AC(0.9));
+        }
+      }
+      // Correction : P2 déplacé, nouvelle courbe
+      e = pr(8, 0.8);
+      if (e > 0) {
+        var pe = [Q[2][0] + (Q2[0] - Q[2][0]) * e, Q[2][1] + (Q2[1] - Q[2][1]) * e];
+        ctx.setLineDash([2, 3]); ctx.strokeStyle = AC(0.7); seg(Q[2][0], Q[2][1], pe[0], pe[1]); ctx.setLineDash([]);
+        if (e >= 1) { ctx.fillStyle = AC(0.85); head(Q2[0], Q2[1], Math.atan2(Q2[1] - Q[2][1], Q2[0] - Q[2][0]), 7); ctx.strokeStyle = AC(0.9); ctx.strokeRect(Q2[0] - 3, Q2[1] - 3, 6, 6); label('P2′', Q2[0] + 8, Q2[1] + 4, 'left', AC(0.9)); }
+      }
+      e = pr(8.8, 1.6);
+      if (e > 0) { ctx.strokeStyle = IN(0.8); ctx.lineWidth = 1.8; path(bez(Q[0], Q[1], Q2, Q[3], 80), e); ctx.lineWidth = 1; }
+      e = pr(10.4, 0.5);
+      if (e > 0) {
+        ctx.globalAlpha = e; var a = bez(Q[0], Q[1], Q[2], Q[3], 10)[7], b2 = bez(Q[0], Q[1], Q2, Q[3], 10)[4];
+        label('v1', a[0] - 10, a[1] + 4, 'right', MU(0.95)); label('v2', b2[0] + 10, b2[1] - 4, 'left', IN(0.9)); ctx.globalAlpha = 1;
+      }
+      return ['Échelle 2:1', 'Gabarit de courbe'];
+    }
+
+    // ---------- H. Spirale d'or ----------
+    function plateH() {
+      var e, k, PHI = 1.618034;
+      var bl = P.left - 8, br = P.right + 8, bt = P.top - 8, bb = P.bottom + 4, ratio = (br - bl) / (bb - bt);
+      e = pr(0.2, 1.4); if (e > 0) { ctx.setLineDash([4, 4]); ctx.strokeStyle = MU(0.4); path(rect(bl, bt, br - bl, bb - bt), e, true); ctx.setLineDash([]); }
+      ctx.strokeStyle = MU(0.18); path([[bl, bb], [br, bt]], pr(1.4, 1));
+      e = pr(2.4, 0.5); if (e > 0) { ctx.globalAlpha = e; label('L / H = ' + fmt(ratio, 2), br, bt - 6, 'right', AC(0.9)); ctx.globalAlpha = 1; }
+      var rw = Math.min(F.w - 30, (F.h - 26) * PHI), rh = rw / PHI, rx = F.x + 24 + (F.w - 30 - rw) / 2, ry = F.y + 20;
+      ctx.strokeStyle = IN(0.55); path(rect(rx, ry, rw, rh), pr(0.6, 1.4), true);
+      var x = rx, y = ry, w = rw, h = rh;
+      for (k = 0; k < 9; k++) {
+        var d = k % 4, cut, a;
+        if (d === 0) { cut = [[x + h, y], [x + h, y + h]]; a = [x + h, y + h, h, Math.PI, 1.5 * Math.PI]; x += h; w -= h; }
+        else if (d === 1) { cut = [[x, y + w], [x + w, y + w]]; a = [x, y + w, w, -Math.PI / 2, 0]; y += w; h -= w; }
+        else if (d === 2) { cut = [[x + w - h, y], [x + w - h, y + h]]; a = [x + w - h, y, h, 0, Math.PI / 2]; w -= h; }
+        else { cut = [[x, y + h - w], [x + w, y + h - w]]; a = [x + w, y + h - w, w, Math.PI / 2, Math.PI]; h -= w; }
+        ctx.strokeStyle = MU(0.5); path(cut, pr(2 + k * 0.5, 0.5));
+        ctx.strokeStyle = AC(0.85); ctx.lineWidth = 1.6; arcP(a[0], a[1], a[2], a[3], a[4], pr(6.4 + k * 0.4, 0.45)); ctx.lineWidth = 1;
+      }
+      ctx.setLineDash([3, 5]); ctx.strokeStyle = MU(0.4); path([[rx, ry], [rx + rw, ry + rh]], pr(9.4, 0.8)); path([[rx + rw, ry], [rx + rh, ry + rh]], pr(9.8, 0.8)); ctx.setLineDash([]);
+      e = pr(10.4, 0.8);
+      if (e > 0) {
+        ctx.strokeStyle = AC(0.7); var cy = ry - 9, cx = rx - 10;
+        seg(rx, cy - 4, rx, cy + 4); path([[rx, cy], [rx + rw, cy]], e); seg(cx - 4, ry, cx + 4, ry); path([[cx, ry], [cx, ry + rh]], e);
+        if (e >= 1) { seg(rx + rw, cy - 4, rx + rw, cy + 4); seg(cx - 4, ry + rh, cx + 4, ry + rh); label('φ', rx + rw / 2, cy - 4, 'center', AC(0.95)); label('1', cx - 4, ry + rh / 2 + 4, 'right', AC(0.95)); }
+      }
+      return ['φ ≈ 1,618', 'Spirale d’or'];
+    }
+
+    // ---------- I. Relevé de terrain ----------
+    function plateI() {
+      var e, k, j, R = Math.min(F.w * 0.33, F.h * 0.47), cx = F.x + F.w * 0.46, cy = F.y + F.h * 0.54;
+      function ring(k) {
+        var pts = [], rk = R * (1 - k * 0.15), ox = cx + k * 4, oy = cy - k * 3;
+        for (var i = 0; i <= 72; i++) { var a = i / 72 * TAU, rr = rk * (1 + 0.12 * Math.sin(2 * a + 1) + 0.07 * Math.sin(3 * a - 0.5 + k * 0.4)); pts.push([ox + rr * Math.cos(a) * 1.25, oy + rr * Math.sin(a) * 0.85]); }
+        return pts;
+      }
+      var RG = [];
+      for (k = 0; k < 6; k++) {
+        var pts = ring(k); RG.push(pts);
+        e = pr(0.6 + k * 0.7, 1.2); if (e <= 0) continue;
+        ctx.strokeStyle = k % 2 ? MU(0.45) : IN(0.55); ctx.lineWidth = k % 2 ? 1 : 1.4; path(pts, e); ctx.lineWidth = 1;
+        if (k % 2 === 0 && e >= 1) {
+          var p = pts[4], s = String(100 + k * 20); ctx.font = '600 10px ' + FD; var tw = ctx.measureText(s).width;
+          ctx.fillStyle = C.paper; ctx.fillRect(p[0] - tw / 2 - 2, p[1] - 6, tw + 4, 12); ctx.textBaseline = 'middle'; label(s, p[0], p[1], 'center', MU(0.95), 600, 10); ctx.textBaseline = 'alphabetic';
+        }
+      }
+      e = pr(5, 0.5); if (e > 0) { var sx = cx + 22, sy = cy - 15; ctx.strokeStyle = IN(0.6 * e); cross(sx, sy, 4); ctx.globalAlpha = e; label('212', sx + 7, sy - 5, 'left', IN(0.8)); ctx.globalAlpha = 1; }
+      // Cheminement et stations
+      var ST = [RG[0][44], RG[1][56], RG[3][66], RG[4][18]];
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = AC(0.7); path(ST, pr(5.8, 2.6)); ctx.setLineDash([]);
+      for (j = 0; j < 4; j++) {
+        e = pr(5.6 + j * 0.65, 0.5); if (e <= 0) continue;
+        var q = ST[j]; ctx.globalAlpha = e; ctx.fillStyle = C.paper; ctx.strokeStyle = AC(0.9);
+        ctx.beginPath(); ctx.moveTo(q[0], q[1] - 5); ctx.lineTo(q[0] + 4.5, q[1] + 3); ctx.lineTo(q[0] - 4.5, q[1] + 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+        label('S' + (j + 1), q[0] + 7, q[1] - 5, 'left', AC(0.95)); ctx.globalAlpha = 1;
+      }
+      // Nord et échelle graphique
+      e = pr(0.3, 0.6);
+      if (e > 0) { var nx = F.x + F.w - 12, ny = F.y + 16; ctx.globalAlpha = e; ctx.strokeStyle = IN(0.6); seg(nx, ny + 24, nx, ny + 4); ctx.fillStyle = IN(0.6); head(nx, ny + 2, -Math.PI / 2, 7); label('N', nx, ny - 6, 'center', IN(0.8)); ctx.globalAlpha = 1; }
+      e = pr(9.6, 0.8);
+      if (e > 0) {
+        var gx = F.x + 2, gyb = F.y + F.h - 6, u = 16; ctx.strokeStyle = IN(0.55);
+        for (k = 0; k < 4; k++) { if (k / 4 > e) break; if (k % 2 === 0) { ctx.fillStyle = IN(0.45); ctx.fillRect(gx + k * u, gyb - 4, u, 4); } ctx.strokeRect(gx + k * u, gyb - 4, u, 4); }
+        if (e >= 1) { label('0', gx, gyb - 8, 'center', MU(0.95), 400); label('200 m', gx + 4 * u, gyb - 8, 'center', MU(0.95), 400); }
+      }
+      wordLink('Sociologue', pr(10.4, 0.5), pr(10.8, 1), ST[0][0] - 8, ST[0][1]);
+      return ['Échelle 1:25 000', 'Relevé de terrain'];
+    }
+
+    // ---------- J. Tracé de la lettre ----------
+    function plateJ() {
+      var e, bl = TY.base, xa = h2x - 14, xb = h2x + h2w + 14;
+      [[bl - TY.cap, 'capitale ' + Math.round(TY.cap), -3], [bl - TY.xh, 'hauteur d’x ' + Math.round(TY.xh), 11], [bl, 'ligne de base', 13]].forEach(function (g, j) {
+        var e = pr(0.3 + j * 0.5, 0.8); if (e <= 0) return;
+        ctx.strokeStyle = AC(0.55); path([[xa, g[0]], [xb, g[0]]], e);
+        if (e >= 1) label(g[1], xb + 6, g[0] + g[2], 'left', AC(0.85), 400);
+      });
+      var s = Math.min(F.w, F.h) / 120 * 0.96, ox = F.x + (F.w - 120 * s) / 2, oy = F.y + (F.h - 120 * s) / 2;
+      function X(v) { return ox + v * s; } function Y(v) { return oy + v * s; }
+      var stem = [[X(38), Y(104)], [X(38), Y(38)]];
+      var arch = bez([X(38), Y(66)], [X(38), Y(53)], [X(48), Y(46)], [X(61), Y(46)], 24).concat(bez([X(61), Y(46)], [X(74), Y(46)], [X(84), Y(54)], [X(84), Y(68)], 24).slice(1)).concat([[X(84), Y(104)]]);
+      ctx.strokeStyle = MU(0.45); path([[X(4), Y(37.5)], [X(116), Y(37.5)]], pr(0.6, 1)); path([[X(4), Y(104)], [X(116), Y(104)]], pr(0.8, 1));
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = AC(0.5); path(rect(X(25), Y(31), 73 * s, 79 * s), pr(1.4, 1.2), true); ctx.setLineDash([]);
+      e = pr(2.6, 1.2);
+      if (e > 0) { ctx.strokeStyle = MU(0.6); cross(X(61), Y(69), 4); ctx.setLineDash([2, 4]); ctx.strokeStyle = MU(0.45); arcP(X(61), Y(69), 23 * s, Math.PI, Math.PI + TAU, e); ctx.setLineDash([]); if (e < 1) compass(X(61), Y(69), 23 * s, Math.PI + TAU * e); }
+      var fl = pr(6.2, 1.4);
+      if (fl > 0) { ctx.lineCap = 'butt'; ctx.globalAlpha = fl; ctx.strokeStyle = C.ink; ctx.lineWidth = 17 * s; path(stem, 1); path(arch, 1); ctx.lineWidth = 1; ctx.globalAlpha = 1; ctx.lineCap = 'round'; }
+      e = pr(3.8, 2);
+      if (e > 0) { ctx.strokeStyle = fl > 0 ? rgba(C.paper, 0.7) : AC(0.85); ctx.lineWidth = 1.4; if (fl > 0) ctx.setLineDash([3, 3]); path(stem, Math.min(1, e * 2.2)); path(arch, cl(e * 1.6 - 0.4)); ctx.setLineDash([]); ctx.lineWidth = 1; }
+      e = pr(5.6, 0.5); if (e > 0) { ctx.fillStyle = AC(0.9 * e); [[38, 104], [84, 104], [38, 38]].forEach(function (q) { dot(X(q[0]), Y(q[1]), 2.4); }); }
+      e = pr(8, 1);
+      if (e > 0) {
+        ctx.strokeStyle = AC(0.8); ctx.fillStyle = AC(0.9);
+        var cy = Y(18); seg(X(29.5), cy - 5, X(29.5), cy + 5); path([[X(29.5), cy], [X(92.5), cy]], e);
+        var vx = X(104); seg(vx - 5, Y(38), vx + 5, Y(38)); path([[vx, Y(38)], [vx, Y(104)]], e);
+        var by = Y(113); seg(X(29.5), by - 4, X(29.5), by + 4); path([[X(29.5), by], [X(46.5), by]], e);
+        if (e >= 1) {
+          seg(X(92.5), cy - 5, X(92.5), cy + 5); seg(vx - 5, Y(104), vx + 5, Y(104)); seg(X(46.5), by - 4, X(46.5), by + 4);
+          label('63', X(61), cy - 5, 'center', AC(0.95)); label('66', vx + 8, Y(71) + 4, 'left', AC(0.95)); label('17', X(50.5), by + 4, 'left', AC(0.95));
+        }
+      }
+      return ['Corps ' + Math.round(TY.fs) + ' px', 'Tracé de la lettre'];
+    }
+
+    // ---------- K. Schéma de principe ----------
+    function plateK() {
+      var e, k, bw = Math.min(F.w * 0.27, 112), bh = Math.min(26, F.h * 0.15), dw = bw * 0.46, dh = bh * 0.85;
+      function at(u, v) { return [F.x + bw / 2 + 2 + (F.w - bw - 4) * u, F.y + bh / 2 + 4 + (F.h - bh - 8) * v]; }
+      var N = { b: at(0, 0), o: at(0.5, 0), e: at(1, 0), d: at(1, 0.52), c: at(0.5, 0.52), l: at(1, 1) };
+      var BOX = [['b', 'Besoin', 0.6, 1], ['o', 'Outil', 1.8, 2], ['e', 'Essai', 3, 0], ['d', 'OK ?', 4.2, 0], ['c', 'Corriger', 5.4, 3], ['l', 'En ligne', 7.2, 0]];
+      var AR = [
+        [[N.b[0] + bw / 2, N.b[1]], [N.o[0] - bw / 2, N.o[1]], 1.4, ''],
+        [[N.o[0] + bw / 2, N.o[1]], [N.e[0] - bw / 2, N.e[1]], 2.6, ''],
+        [[N.e[0], N.e[1] + bh / 2], [N.d[0], N.d[1] - dh], 3.8, ''],
+        [[N.d[0] - dw, N.d[1]], [N.c[0] + bw / 2, N.c[1]], 5, 'non'],
+        [[N.c[0], N.c[1] - bh / 2], [N.o[0], N.o[1] + bh / 2], 6.2, 'recommencer'],
+        [[N.d[0], N.d[1] + dh], [N.l[0], N.l[1] - bh / 2], 6.8, 'oui']
+      ];
+      // Renvois numérotés depuis le texte
+      ['besoin', 'outil', 'corriger', 'recommencer'].forEach(function (w, j) {
+        var q = words[w], e = pr(0.3 + j * 0.4, 0.6); if (!q || e <= 0) return;
+        ctx.strokeStyle = AC(0.75); seg(q.x, q.y + 1, q.x + q.w * e, q.y + 1);
+        if (e >= 1) label(String(j + 1), q.x + q.w / 2, q.y + 10, 'center', AC(0.95), 600, 9);
+      });
+      BOX.forEach(function (bx) {
+        var p = N[bx[0]], e = pr(bx[2], 0.7); if (e <= 0) return;
+        var pts = bx[0] === 'd' ? [[p[0], p[1] - dh], [p[0] + dw, p[1]], [p[0], p[1] + dh], [p[0] - dw, p[1]]] : rect(p[0] - bw / 2, p[1] - bh / 2, bw, bh);
+        var done = bx[0] === 'l' && t > 16.4;
+        ctx.fillStyle = C.paper; ctx.globalAlpha = e; ctx.beginPath(); pts.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = done ? AC(0.9) : e < 1 ? AC(0.8) : IN(0.6); ctx.lineWidth = done ? 2 : 1.2; path(pts, e, true); ctx.lineWidth = 1;
+        if (e >= 1) {
+          ctx.textBaseline = 'middle'; label(bx[1], p[0], p[1] + 0.5, 'center', IN(0.9));
+          if (bx[3]) label(String(bx[3]), p[0] - bw / 2 + 3, p[1] - bh / 2 - 6, 'left', AC(0.95), 600, 9);
+          ctx.textBaseline = 'alphabetic';
+        }
+      });
+      AR.forEach(function (a, j) {
+        var e = pr(a[2], 0.5); if (e <= 0) return;
+        ctx.strokeStyle = MU(0.75); path([a[0], a[1]], e);
+        if (e >= 1) {
+          ctx.fillStyle = MU(0.85); head(a[1][0], a[1][1], Math.atan2(a[1][1] - a[0][1], a[1][0] - a[0][0]), 6);
+          var mx = (a[0][0] + a[1][0]) / 2, my = (a[0][1] + a[1][1]) / 2;
+          if (a[3] === 'non') label('non', mx, my - 5, 'center', MU(0.95), 400);
+          if (a[3] === 'oui') label('oui', mx + 6, my + 4, 'left', MU(0.95), 400);
+          if (a[3] === 'recommencer') { label('recommencer', mx + 6, my + 4, 'left', AC(0.9), 400); label('4', mx + 6, my - 8, 'left', AC(0.95), 600, 9); }
+        }
+      });
+      // Un jeton parcourt la boucle : un premier essai raté, une correction, puis la mise en ligne
+      var route = [N.b, N.o, N.e, N.d, N.c, N.o, N.e, N.d, N.l], pg = lin(8.4, 8);
+      if (pg > 0 && pg < 1) { var q = pointAt(route, pg); ctx.fillStyle = AC(1); dot(q[0], q[1], 4); ctx.strokeStyle = AC(0.35); ctx.beginPath(); ctx.arc(q[0], q[1], 8, 0, TAU); ctx.stroke(); }
+      return ['Sans échelle', 'Schéma de principe'];
+    }
+
+    var PLATES = [plateA, plateB, plateC, plateD, plateE, plateF, plateG, plateH, plateI, plateJ, plateK];
+
+    function cartouche(meta, idx) {
+      var bw = Math.min(Z.x1 - Z.x0, 270), bh = 90, bx = Z.x1 - bw, by = Z.y1 - bh, e = pr(10.8, 1.4), k;
+      if (e <= 0) return;
+      ctx.strokeStyle = IN(0.5); var per = 2 * (bw + bh), d = per * e, pts = [[bx + bw, by], [bx + bw, by + bh], [bx, by + bh], [bx, by]], px = bx, py = by;
+      ctx.beginPath(); ctx.moveTo(bx, by);
+      for (k = 0; k < 4 && d > 0; k++) { var qx = pts[k][0], qy = pts[k][1], ln = Math.abs(qx - px) + Math.abs(qy - py), f2 = Math.min(1, d / ln); ctx.lineTo(px + (qx - px) * f2, py + (qy - py) * f2); d -= ln; px = qx; py = qy; }
+      ctx.stroke();
+      e = pr(12.2, 0.8);
+      if (e > 0) {
+        ctx.strokeStyle = IN(0.35); seg(bx, by + 30, bx + bw * e, by + 30); seg(bx, by + 60, bx + bw * e, by + 60); seg(bx + bw * 0.5, by + 30, bx + bw * 0.5, by + 30 + 60 * e);
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.globalAlpha = e;
+        ctx.font = '600 13px ' + FD; ctx.fillStyle = C.ink; ctx.fillText('Démarche', bx + 10, by + 15);
+        ctx.font = '400 11px ' + FD; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText('S. Noguès', bx + bw - 10, by + 15);
+        ctx.textAlign = 'left'; ctx.fillText(meta[0], bx + 10, by + 45); ctx.fillText(meta[1], bx + bw * 0.5 + 10, by + 45);
+        ctx.fillText(today, bx + bw * 0.5 + 10, by + 75);
+        ctx.font = '600 11px ' + FD; ctx.fillStyle = C.accent; ctx.fillText('Indice ' + LETTERS.charAt(idx), bx + 10, by + 75);
+        ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.lineCap = 'round'; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+      var idx = rev % PLATES.length, meta = PLATES[idx]();
+      ctx.lineCap = 'round'; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+      cartouche(meta, idx);
+      // Gomme : efface de gauche à droite avant la planche suivante
+      var e = pr(CYCLE - 1.8, 1.6);
       if (e > 0) {
         var gx = -20 + (W + 40) * e; ctx.clearRect(0, 0, Math.max(0, gx), H);
         ctx.setLineDash([2, 6]); ctx.strokeStyle = AC(0.6); seg(gx, 0, gx, H); ctx.setLineDash([]);
