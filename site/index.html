@@ -313,6 +313,23 @@
     .logo.build .g, .logo.build .fr, .logo.build .sk, .logo.build .dt, .logo.build .fl, .logo.build .ct, .logo.build .ca { animation: none; }
     .l { animation: none; color: var(--ink); -webkit-text-stroke: 0; }
   }
+  /* Curseur clé plate, partout sauf dans la section Démarche (réticule de dessin) */
+  .cle { position: fixed; left: 0; top: 0; z-index: 2147483000; pointer-events: none; display: none; will-change: transform; }
+  .cle.on { display: block; }
+  .cle .tool { transform-origin: 6.7px 6.7px; transition: transform 0.18s ease-out; }
+  .cle svg { display: block; overflow: visible; }
+  .cle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.6; paint-order: stroke; transition: fill 0.18s; }
+  .cle.hot .tool { transform: rotate(-30deg); }
+  .cle.hot path { fill: var(--accent); }
+  .cle.turn .tool { animation: cle-turn 0.32s ease-in-out; }
+  @keyframes cle-turn { 50% { transform: rotate(-60deg); } }
+  html.cle-on, html.cle-on * { cursor: none !important; }
+  /* Animations réduites : même clé, en curseur fixe du système */
+  @media (pointer: fine) and (prefers-reduced-motion: reduce) {
+    body { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cg%20transform%3D%27rotate%280%206.7%206.7%29%27%3E%3Cg%20transform%3D%27translate%2812%2012%29%20rotate%2845%29%27%3E%3Cpath%20fill-rule%3D%27evenodd%27%20fill%3D%27%2318202B%27%20stroke%3D%27%23FFFFFF%27%20stroke-width%3D%271.6%27%20paint-order%3D%27stroke%27%20d%3D%27M0%20-2.8%20L-6.96%20-2.8%20A7.5%207.5%200%200%201%207.03%20-2.6%20L29%20-2.6%20A2.6%202.6%200%200%201%2029%202.6%20L7.03%202.6%20A7.5%207.5%200%200%201%20-6.96%202.8%20L0%202.8%20Z%20M27.7%200%20A1.2%201.2%200%201%200%2025.3%200%20A1.2%201.2%200%201%200%2027.7%200%20Z%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") 7 7, auto; }
+    a, button, summary, label, [role="button"] { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cg%20transform%3D%27rotate%28-30%206.7%206.7%29%27%3E%3Cg%20transform%3D%27translate%2812%2012%29%20rotate%2845%29%27%3E%3Cpath%20fill-rule%3D%27evenodd%27%20fill%3D%27%232346D8%27%20stroke%3D%27%23FFFFFF%27%20stroke-width%3D%271.6%27%20paint-order%3D%27stroke%27%20d%3D%27M0%20-2.8%20L-6.96%20-2.8%20A7.5%207.5%200%200%201%207.03%20-2.6%20L29%20-2.6%20A2.6%202.6%200%200%201%2029%202.6%20L7.03%202.6%20A7.5%207.5%200%200%201%20-6.96%202.8%20L0%202.8%20Z%20M27.7%200%20A1.2%201.2%200%201%200%2025.3%200%20A1.2%201.2%200%201%200%2027.7%200%20Z%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") 7 7, pointer; }
+    #demarche, #demarche *, input, textarea, select { cursor: auto; }
+  }
 </style>
 </head>
 <body>
@@ -1405,6 +1422,42 @@
     setTimeout(function () { busy = false; }, 3900); busy = true;
     link.addEventListener('mouseenter', replay);
     link.addEventListener('focus', replay);
+  })();
+</script>
+<script>
+  // Curseur clé plate : suit la souris, pivote sur les liens et boutons, donne un tour de serrage au clic.
+  // Curseur normal dans la section Démarche, dans les champs de saisie et quand la vidéo est ouverte ;
+  // rien sur écran tactile ; curseur fixe (CSS) si les animations sont réduites.
+  (function () {
+    var fine = window.matchMedia('(pointer: fine)'), reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var root = document.documentElement, el = document.createElement('div');
+    el.className = 'cle'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<div class="tool"><svg width="44" height="44" viewBox="0 0 44 44"><g transform="translate(12 12) rotate(45)"><path fill-rule="evenodd" d="M0 -2.8 L-6.96 -2.8 A7.5 7.5 0 0 1 7.03 -2.6 L29 -2.6 A2.6 2.6 0 0 1 29 2.6 L7.03 2.6 A7.5 7.5 0 0 1 -6.96 2.8 L0 2.8 Z M27.7 0 A1.2 1.2 0 1 0 25.3 0 A1.2 1.2 0 1 0 27.7 0 Z"/></g></svg></div>';
+    document.body.appendChild(el);
+    var x = 0, y = 0, raf = 0, on = false, tt = 0;
+    function place() { raf = 0; el.style.transform = 'translate3d(' + (x - 6.7) + 'px,' + (y - 6.7) + 'px,0)'; }
+    function show(v) { if (v === on) return; on = v; if (v) place(); el.classList.toggle('on', v); root.classList.toggle('cle-on', v); if (!v) el.classList.remove('hot', 'turn'); }
+    function native(t) { return !t || !t.closest || !!t.closest('#demarche, input, textarea, select, [contenteditable], iframe') || !!document.querySelector('dialog[open]'); }
+    function update(t) {
+      if (!fine.matches || reduce.matches || native(t)) { show(false); return; }
+      show(true);
+      el.classList.toggle('hot', !!t.closest('a, button, summary, label, [role="button"]'));
+      if (!raf) raf = requestAnimationFrame(place);
+    }
+    document.addEventListener('pointermove', function (ev) {
+      if (ev.pointerType !== 'mouse') { show(false); return; }
+      x = ev.clientX; y = ev.clientY; update(ev.target);
+    }, { passive: true });
+    window.addEventListener('scroll', function () { if (on) update(document.elementFromPoint(x, y)); }, { passive: true });
+    document.addEventListener('pointerdown', function () {
+      if (!on) return;
+      el.classList.remove('turn'); void el.offsetWidth; el.classList.add('turn');
+      clearTimeout(tt); tt = setTimeout(function () { el.classList.remove('turn'); }, 340);
+    });
+    document.addEventListener('click', function () { setTimeout(function () { if (document.querySelector('dialog[open]')) show(false); }, 0); });
+    document.addEventListener('mouseout', function (ev) { if (!ev.relatedTarget) show(false); });
+    window.addEventListener('blur', function () { show(false); });
+    reduce.addEventListener('change', function () { if (reduce.matches) show(false); });
   })();
 </script>
 </body>
